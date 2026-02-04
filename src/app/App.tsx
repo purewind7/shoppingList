@@ -11,6 +11,7 @@ import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { RecipeList } from '@/app/components/RecipeList';
 import { AddRecipeModal } from '@/app/components/AddRecipeModal';
 import { RecipeImportModal } from '@/app/components/RecipeImportModal';
+import { ITEM_COLORS } from '@/app/colors';
 
 interface Item {
   id: string;
@@ -183,28 +184,13 @@ export default function App() {
       stores.forEach((store) => nameToStores[normalizedName].add(store));
     });
 
-    const colors = [
-      '#FF6B6B',
-      '#4ECDC4',
-      '#45B7D1',
-      '#96CEB4',
-      '#FFEEAD',
-      '#D4A5A5',
-      '#9B59B6',
-      '#3498DB',
-      '#FF9F43',
-      '#54A0FF',
-      '#5F27CD',
-      '#C4E538',
-    ];
-
     const colorMap: Record<string, string> = {};
     const multiStoreNames = Object.keys(nameToStores)
       .filter((name) => nameToStores[name].size > 1)
       .sort();
 
     multiStoreNames.forEach((name, index) => {
-      colorMap[name] = colors[index % colors.length];
+      colorMap[name] = ITEM_COLORS[index % ITEM_COLORS.length];
     });
 
     return colorMap;
