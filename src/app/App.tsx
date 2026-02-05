@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
-import { ShoppingBasket, LayoutGrid, Store, Search, BookOpen, Plus, Download, LogOut } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ShoppingBasket, LayoutGrid, Store, Search, BookOpen, Plus, Download, LogOut, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
@@ -59,6 +59,7 @@ export default function App() {
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -81,30 +82,39 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const loadData = async () => {
-      if (!session?.user) {
-        setItems([]);
-        setRecipes([]);
-        setKnownStores([]);
-        return;
-      }
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 240);
+    };
 
-      setDataLoading(true);
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
-      const [itemsResult, recipesResult, storesResult] = await Promise.all([
-        supabase
-          .from('grocery_items')
-          .select('id,name,supermarket,completed,created_at')
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('recipes')
-          .select('id,name,notes,created_at,recipe_ingredients(id,name,supermarket)')
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('stores')
-          .select('name')
-          .order('created_at', { ascending: false }),
-      ]);
+  const loadData = useCallback(async () => {
+    if (!session?.user) {
+      setItems([]);
+      setRecipes([]);
+      setKnownStores([]);
+      return;
+    }
+
+    setDataLoading(true);
+
+    const [itemsResult, recipesResult, storesResult] = await Promise.all([
+      supabase
+        .from('grocery_items')
+        .select('id,name,supermarket,completed,created_at')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('recipes')
+        .select('id,name,notes,created_at,recipe_ingredients(id,name,supermarket)')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('stores')
+        .select('name')
+        .order('created_at', { ascending: false }),
+    ]);
 
       const itemRows = itemsResult.data ?? [];
       if (itemsResult.error) {
@@ -157,7 +167,7 @@ export default function App() {
           .map((name) => name.trim())
           .filter(Boolean);
         const existing = new Set(
-          [...DEFAULT_STORES, ...knownStores, ...dbStores.map((row) => row.name ?? '')]
+          [...DEFAULT_STORES, ...dbStores.map((row) => row.name ?? '')]
             .map((store) => store.trim())
             .filter(Boolean)
             .map((store) => store.toLowerCase())
@@ -186,11 +196,12 @@ export default function App() {
         }
       }
 
-      setDataLoading(false);
-    };
+    setDataLoading(false);
+  }, [session?.user]);
 
+  useEffect(() => {
     loadData();
-  }, [session?.user?.id]);
+  }, [loadData]);
 
   const uniqueSupermarkets = useMemo(() => {
     const stores = new Set<string>(DEFAULT_STORES);
@@ -685,7 +696,15 @@ export default function App() {
       {/* Header */}
       <div className="relative h-48 w-full overflow-hidden">
         <div className="absolute top-4 right-4 z-20">
-          <div className="flex items-center gap-2 text-xs font-semibold text-gray-700 bg-white/70 backdrop-blur-md rounded-full px-3 py-2">
+          <div className="flex items-center gap-2 text-xs font-semibold text-gray-700 bg-white/70 backdrop-blur-md rounded-full px-2 py-2">
+            <button
+              onClick={loadData}
+              className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
+              aria-label="Refresh data"
+              title="Refresh data"
+            >
+              <RefreshCw className={`w-4 h-4 ${dataLoading ? 'animate-spin' : ''}`} />
+            </button>
             <span>
               Signed in as <span className="text-gray-900">{session.user.email ?? 'User'}</span>
             </span>
@@ -926,6 +945,17 @@ export default function App() {
             <span className="text-sm font-bold">{completedCount} Completed</span>
           </div>
         </div>
+      )}
+
+      {showScrollTop && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="fixed bottom-6 right-6 sm:hidden z-40 p-3 rounded-full bg-white/90 backdrop-blur-md text-gray-700 shadow-lg border border-white/60 hover:bg-white transition-colors"
+          aria-label="Scroll to top"
+          title="Scroll to top"
+        >
+          <span className="text-lg font-bold">↑</span>
+        </button>
       )}
 
       {/* Modals */}
