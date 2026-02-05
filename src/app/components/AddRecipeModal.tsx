@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/app/components/ui/dialog';
 import { ItemForm } from './ItemForm';
 import { Plus, Trash2, ShoppingBasket, Pencil } from 'lucide-react';
@@ -41,13 +41,22 @@ export const AddRecipeModal: React.FC<AddRecipeModalProps> = ({
   const [isAddingIngredient, setIsAddingIngredient] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
 
+  const wasOpenRef = useRef(false);
+
   useEffect(() => {
-    if (!isOpen) return;
-    setRecipeName(initialName);
-    setIngredients(initialIngredients);
-    setNotes(initialNotes);
-    setIsAddingIngredient(false);
-    setEditingIngredient(null);
+    if (!isOpen) {
+      wasOpenRef.current = false;
+      return;
+    }
+
+    if (!wasOpenRef.current) {
+      setRecipeName(initialName);
+      setIngredients(initialIngredients);
+      setNotes(initialNotes);
+      setIsAddingIngredient(false);
+      setEditingIngredient(null);
+      wasOpenRef.current = true;
+    }
   }, [isOpen, initialName, initialIngredients, initialNotes]);
 
   const handleAddIngredient = (name: string, supermarket: string) => {
