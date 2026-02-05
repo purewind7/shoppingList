@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { ShoppingBasket, LayoutGrid, Store, Search, BookOpen, Plus, Download } from 'lucide-react';
+import { ShoppingBasket, LayoutGrid, Store, Search, BookOpen, Plus, Download, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
@@ -528,6 +528,23 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-24">
+      <div className="fixed top-4 right-4 z-50">
+        <div className="flex items-center gap-3 px-4 py-2 bg-white/90 backdrop-blur-md border border-gray-200 rounded-full shadow-sm">
+          <div className="text-xs font-semibold text-gray-600">
+            Signed in as{' '}
+            <span className="text-gray-900">{session.user.email ?? 'User'}</span>
+          </div>
+          <button
+            onClick={handleSignOut}
+            className="p-2 rounded-full text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+            aria-label="Sign out"
+            title="Sign out"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="relative h-48 w-full overflow-hidden">
         <ImageWithFallback
@@ -543,22 +560,14 @@ export default function App() {
               {items.length} items total • {completedCount} done
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            {completedCount > 0 && (
-              <button
-                onClick={clearCompleted}
-                className="px-4 py-2 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-full text-sm font-bold hover:bg-white/30 transition-all"
-              >
-                Clear Done
-              </button>
-            )}
+          {completedCount > 0 && (
             <button
-              onClick={handleSignOut}
-              className="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-full text-sm font-bold hover:bg-white/20 transition-all"
+              onClick={clearCompleted}
+              className="px-4 py-2 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-full text-sm font-bold hover:bg-white/30 transition-all"
             >
-              Sign Out
+              Clear Done
             </button>
-          </div>
+          )}
         </div>
       </div>
 
