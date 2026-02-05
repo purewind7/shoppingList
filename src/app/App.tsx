@@ -104,11 +104,12 @@ export default function App() {
           .order('created_at', { ascending: false }),
       ]);
 
+      const itemRows = itemsResult.data ?? [];
       if (itemsResult.error) {
         console.error(itemsResult.error);
-      } else if (itemsResult.data) {
+      } else if (itemRows.length) {
         setItems(
-          itemsResult.data.map((row) => ({
+          itemRows.map((row) => ({
             id: row.id,
             name: row.name,
             supermarket: row.supermarket ?? 'General',
@@ -136,13 +137,50 @@ export default function App() {
         );
       }
 
+      const dbStores = storesResult.data ?? [];
       if (storesResult.error) {
         console.error(storesResult.error);
-      } else if (storesResult.data) {
-        const storeNames = storesResult.data
-          .map((row) => row.name)
-          .filter((name): name is string => Boolean(name && name.trim()));
-        setKnownStores(storeNames);
+      } else if (dbStores.length) {
+        const storeNames = dbStores
+          .flatMap((row) => row.name?.split(',') ?? [])
+          .map((name) => name.trim())
+          .filter(Boolean);
+        setKnownStores(Array.from(new Set(storeNames)));
+      }
+
+      if (itemRows.length) {
+        const storeFromItems = itemRows
+          .flatMap((row) => row.supermarket?.split(',') ?? [])
+          .map((name) => name.trim())
+          .filter(Boolean);
+        const existing = new Set(
+          [...DEFAULT_STORES, ...knownStores, ...dbStores.map((row) => row.name ?? '')]
+            .map((store) => store.trim())
+            .filter(Boolean)
+            .map((store) => store.toLowerCase())
+        );
+        const missingStores = Array.from(new Set(storeFromItems)).filter(
+          (store) => !existing.has(store.toLowerCase())
+        );
+
+        if (missingStores.length > 0 && session?.user) {
+          const { data, error } = await supabase
+            .from('stores')
+            .insert(missingStores.map((name) => ({ user_id: session.user.id, name })))
+            .select('name');
+
+          if (error) {
+            console.error(error);
+          } else if (data?.length) {
+            setKnownStores((prev) => {
+              const next = new Set(prev);
+              data.forEach((row) => {
+                if (row.name) next.add(row.name);
+              });
+              return Array.from(next);
+            });
+          }
+        }
       }
 
       setDataLoading(false);
@@ -289,30 +327,39 @@ export default function App() {
 
   const handleAddStore = async (storeName: string) => {
     if (!session?.user) return;
-    const trimmed = storeName.trim();
-    if (!trimmed) return;
+    const normalizedStores = storeName
+      .split(',')
+      .map((name) => name.trim())
+      .filter(Boolean);
+    if (normalizedStores.length === 0) return;
 
-    const exists = [...DEFAULT_STORES, ...knownStores].some(
-      (store) => store.toLowerCase() === trimmed.toLowerCase()
+    const existing = new Set(
+      [...DEFAULT_STORES, ...knownStores].map((store) => store.toLowerCase())
     );
-    if (exists) return;
+    const toInsert = normalizedStores.filter(
+      (store) => !existing.has(store.toLowerCase())
+    );
+
+    if (toInsert.length === 0) return;
 
     const { data, error } = await supabase
       .from('stores')
-      .insert({
-        user_id: session.user.id,
-        name: trimmed,
-      })
-      .select('name')
-      .single();
+      .insert(toInsert.map((name) => ({ user_id: session.user.id, name })))
+      .select('name');
 
     if (error) {
       console.error(error);
       return;
     }
 
-    if (data?.name) {
-      setKnownStores((prev) => [data.name, ...prev]);
+    if (data?.length) {
+      setKnownStores((prev) => {
+        const next = new Set(prev);
+        data.forEach((row) => {
+          if (row.name) next.add(row.name);
+        });
+        return Array.from(next);
+      });
     }
   };
 
