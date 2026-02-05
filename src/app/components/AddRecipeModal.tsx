@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/app/components/ui/dialog';
 import { ItemForm } from './ItemForm';
 import { Plus, Trash2, ShoppingBasket, Pencil } from 'lucide-react';
@@ -40,6 +40,10 @@ export const AddRecipeModal: React.FC<AddRecipeModalProps> = ({
   const [notes, setNotes] = useState(initialNotes);
   const [isAddingIngredient, setIsAddingIngredient] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
+  const editingInitialSupermarkets = useMemo(() => {
+    if (!editingIngredient?.supermarket) return undefined;
+    return editingIngredient.supermarket.split(',').map((s) => s.trim()).filter(Boolean);
+  }, [editingIngredient]);
 
   const wasOpenRef = useRef(false);
 
@@ -195,11 +199,7 @@ export const AddRecipeModal: React.FC<AddRecipeModalProps> = ({
                   autoFocus={true}
                   onManageStores={onManageStores}
                   initialName={editingIngredient?.name ?? ''}
-                  initialSupermarkets={
-                    editingIngredient?.supermarket
-                      ? editingIngredient.supermarket.split(',').map((s) => s.trim()).filter(Boolean)
-                      : []
-                  }
+                  initialSupermarkets={editingInitialSupermarkets}
                 />
               </div>
             ) : (
