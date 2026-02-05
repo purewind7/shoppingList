@@ -33,6 +33,7 @@ interface Recipe {
   id: string;
   name: string;
   ingredients: Ingredient[];
+  notes?: string;
   createdAt: number;
 }
 
@@ -57,6 +58,7 @@ export default function App() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -96,7 +98,7 @@ export default function App() {
           .order('created_at', { ascending: false }),
         supabase
           .from('recipes')
-          .select('id,name,created_at,recipe_ingredients(id,name,supermarket)')
+          .select('id,name,notes,created_at,recipe_ingredients(id,name,supermarket)')
           .order('created_at', { ascending: false }),
         supabase
           .from('stores')
@@ -126,6 +128,7 @@ export default function App() {
           recipesResult.data.map((row) => ({
             id: row.id,
             name: row.name,
+            notes: row.notes ?? '',
             createdAt: new Date(row.created_at).getTime(),
             ingredients:
               row.recipe_ingredients?.map((ingredient) => ({
@@ -383,7 +386,7 @@ export default function App() {
     setKnownStores((prev) => prev.filter((store) => store.toLowerCase() !== trimmed.toLowerCase()));
   };
 
-  const handleAddRecipe = async (name: string, ingredients: Ingredient[]) => {
+  const handleAddRecipe = async (name: string, ingredients: Ingredient[], notes: string) => {
     if (!session?.user) return;
 
     const { data: recipeRow, error: recipeError } = await supabase
@@ -391,8 +394,9 @@ export default function App() {
       .insert({
         user_id: session.user.id,
         name,
+        notes,
       })
-      .select('id,name,created_at')
+      .select('id,name,notes,created_at')
       .single();
 
     if (recipeError || !recipeRow) {
@@ -420,6 +424,7 @@ export default function App() {
       {
         id: recipeRow.id,
         name: recipeRow.name,
+        notes: recipeRow.notes ?? '',
         createdAt: new Date(recipeRow.created_at).getTime(),
         ingredients:
           ingredientRows?.map((ingredient) => ({
@@ -553,6 +558,70 @@ export default function App() {
     setItems([]);
     setRecipes([]);
     setKnownStores([]);
+  };
+
+  const handleUpdateRecipe = async (id: string, name: string, ingredients: Ingredient[], notes: string) => {
+    const { data: recipeRow, error: recipeError } = await supabase
+      .from('recipes')
+      .update({ name, notes })
+      .eq('id', id)
+      .select('id,name,notes,created_at')
+      .single();
+
+    if (recipeError || !recipeRow) {
+      console.error(recipeError);
+      return;
+    }
+
+    const { error: deleteError } = await supabase
+      .from('recipe_ingredients')
+      .delete()
+      .eq('recipe_id', id);
+
+    if (deleteError) {
+      console.error(deleteError);
+      return;
+    }
+
+    let ingredientRows: Ingredient[] = [];
+    if (ingredients.length > 0) {
+      const { data, error: ingredientError } = await supabase
+        .from('recipe_ingredients')
+        .insert(
+          ingredients.map((ingredient) => ({
+            recipe_id: id,
+            name: ingredient.name,
+            supermarket: ingredient.supermarket || 'General',
+          }))
+        )
+        .select('id,name,supermarket');
+
+      if (ingredientError) {
+        console.error(ingredientError);
+        return;
+      }
+
+      ingredientRows =
+        data?.map((ingredient) => ({
+          id: ingredient.id,
+          name: ingredient.name,
+          supermarket: ingredient.supermarket ?? 'General',
+        })) ?? [];
+    }
+
+    setRecipes((prev) =>
+      prev.map((recipe) =>
+        recipe.id === id
+          ? {
+              id: recipeRow.id,
+              name: recipeRow.name,
+              notes: recipeRow.notes ?? '',
+              createdAt: new Date(recipeRow.created_at).getTime(),
+              ingredients: ingredientRows,
+            }
+          : recipe
+      )
+    );
   };
 
   const completedCount = items.filter((item) => item.completed).length;
@@ -830,7 +899,14 @@ export default function App() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
-                <RecipeList recipes={recipes} onDelete={handleDeleteRecipe} />
+                <RecipeList
+                  recipes={recipes}
+                  onDelete={handleDeleteRecipe}
+                  onEdit={(id) => {
+                    const target = recipes.find((entry) => entry.id === id);
+                    if (target) setEditingRecipe(target);
+                  }}
+                />
               </motion.div>
             )}
           </AnimatePresence>
@@ -854,11 +930,26 @@ export default function App() {
 
       {/* Modals */}
       <AddRecipeModal
-        isOpen={isRecipeModalOpen}
-        onClose={() => setIsRecipeModalOpen(false)}
-        onSave={handleAddRecipe}
+        isOpen={isRecipeModalOpen || Boolean(editingRecipe)}
+        onClose={() => {
+          setIsRecipeModalOpen(false);
+          setEditingRecipe(null);
+        }}
+        onSave={(name, ingredients, notes) => {
+          if (editingRecipe) {
+            handleUpdateRecipe(editingRecipe.id, name, ingredients, notes);
+            setEditingRecipe(null);
+          } else {
+            handleAddRecipe(name, ingredients, notes);
+          }
+        }}
         supermarkets={uniqueSupermarkets}
         onManageStores={() => setIsStoreModalOpen(true)}
+        initialName={editingRecipe?.name ?? ''}
+        initialIngredients={editingRecipe?.ingredients ?? []}
+        initialNotes={editingRecipe?.notes ?? ''}
+        submitLabel={editingRecipe ? 'Update Recipe' : 'Save Recipe'}
+        title={editingRecipe ? 'Edit Recipe' : 'Create New Recipe'}
       />
 
       <RecipeImportModal

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/app/components/ui/dialog';
 import { ItemForm } from './ItemForm';
-import { Plus, Trash2, ShoppingBasket } from 'lucide-react';
+import { Plus, Trash2, ShoppingBasket, Pencil } from 'lucide-react';
 
 // Define types locally since they aren't global yet
 interface Ingredient {
@@ -13,9 +13,14 @@ interface Ingredient {
 interface AddRecipeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (name: string, ingredients: Ingredient[]) => void;
+  onSave: (name: string, ingredients: Ingredient[], notes: string) => void;
   supermarkets: string[];
   onManageStores?: () => void;
+  initialName?: string;
+  initialIngredients?: Ingredient[];
+  initialNotes?: string;
+  submitLabel?: string;
+  title?: string;
 }
 
 export const AddRecipeModal: React.FC<AddRecipeModalProps> = ({
@@ -24,12 +29,41 @@ export const AddRecipeModal: React.FC<AddRecipeModalProps> = ({
   onSave,
   supermarkets,
   onManageStores,
+  initialName = '',
+  initialIngredients = [],
+  initialNotes = '',
+  submitLabel = 'Save Recipe',
+  title = 'Create New Recipe',
 }) => {
-  const [recipeName, setRecipeName] = useState('');
-  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [recipeName, setRecipeName] = useState(initialName);
+  const [ingredients, setIngredients] = useState<Ingredient[]>(initialIngredients);
+  const [notes, setNotes] = useState(initialNotes);
   const [isAddingIngredient, setIsAddingIngredient] = useState(false);
+  const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setRecipeName(initialName);
+    setIngredients(initialIngredients);
+    setNotes(initialNotes);
+    setIsAddingIngredient(false);
+    setEditingIngredient(null);
+  }, [isOpen, initialName, initialIngredients, initialNotes]);
 
   const handleAddIngredient = (name: string, supermarket: string) => {
+    if (editingIngredient) {
+      setIngredients((prev) =>
+        prev.map((ingredient) =>
+          ingredient.id === editingIngredient.id
+            ? { ...ingredient, name, supermarket }
+            : ingredient
+        )
+      );
+      setEditingIngredient(null);
+      setIsAddingIngredient(false);
+      return;
+    }
+
     const newIngredient: Ingredient = {
       id: crypto.randomUUID(),
       name,
@@ -41,13 +75,18 @@ export const AddRecipeModal: React.FC<AddRecipeModalProps> = ({
 
   const removeIngredient = (id: string) => {
     setIngredients(ingredients.filter(i => i.id !== id));
+    if (editingIngredient?.id === id) {
+      setEditingIngredient(null);
+      setIsAddingIngredient(false);
+    }
   };
 
   const handleSave = () => {
     if (!recipeName.trim()) return;
-    onSave(recipeName, ingredients);
+    onSave(recipeName, ingredients, notes);
     setRecipeName('');
     setIngredients([]);
+    setNotes('');
     onClose();
   };
 
@@ -55,7 +94,7 @@ export const AddRecipeModal: React.FC<AddRecipeModalProps> = ({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">Create New Recipe</DialogTitle>
+          <DialogTitle className="text-2xl font-bold">{title}</DialogTitle>
           <DialogDescription className="sr-only">
             Add a name and ingredients to create a new recipe.
           </DialogDescription>
@@ -72,6 +111,17 @@ export const AddRecipeModal: React.FC<AddRecipeModalProps> = ({
               value={recipeName}
               onChange={(e) => setRecipeName(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-lg"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Notes</label>
+            <textarea
+              placeholder="Add instructions, quantities, or any notes..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={4}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
             />
           </div>
 
@@ -96,12 +146,27 @@ export const AddRecipeModal: React.FC<AddRecipeModalProps> = ({
                         <p className="text-xs text-gray-500 mt-0.5">{ingredient.supermarket}</p>
                       )}
                     </div>
-                    <button
-                      onClick={() => removeIngredient(ingredient.id)}
-                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+                      <button
+                        onClick={() => {
+                          setEditingIngredient(ingredient);
+                          setIsAddingIngredient(true);
+                        }}
+                        className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all"
+                        aria-label="Edit ingredient"
+                        title="Edit ingredient"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => removeIngredient(ingredient.id)}
+                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                        aria-label="Delete ingredient"
+                        title="Delete ingredient"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -113,10 +178,19 @@ export const AddRecipeModal: React.FC<AddRecipeModalProps> = ({
                 <ItemForm
                   supermarkets={supermarkets}
                   onSubmit={handleAddIngredient}
-                  onCancel={() => setIsAddingIngredient(false)}
-                  submitLabel="Add Ingredient"
+                  onCancel={() => {
+                    setIsAddingIngredient(false);
+                    setEditingIngredient(null);
+                  }}
+                  submitLabel={editingIngredient ? 'Update Ingredient' : 'Add Ingredient'}
                   autoFocus={true}
                   onManageStores={onManageStores}
+                  initialName={editingIngredient?.name ?? ''}
+                  initialSupermarkets={
+                    editingIngredient?.supermarket
+                      ? editingIngredient.supermarket.split(',').map((s) => s.trim()).filter(Boolean)
+                      : []
+                  }
                 />
               </div>
             ) : (
@@ -143,7 +217,7 @@ export const AddRecipeModal: React.FC<AddRecipeModalProps> = ({
             disabled={!recipeName.trim()}
             className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold transition-colors"
           >
-            Save Recipe
+            {submitLabel}
           </button>
         </DialogFooter>
       </DialogContent>
