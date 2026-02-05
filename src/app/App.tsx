@@ -541,7 +541,15 @@ export default function App() {
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    const { error: globalError } = await supabase.auth.signOut({ scope: 'global' });
+    if (globalError && globalError.code !== 'session_not_found') {
+      console.error(globalError);
+    }
+    const { error: localError } = await supabase.auth.signOut({ scope: 'local' });
+    if (localError) {
+      console.error(localError);
+    }
+    setSession(null);
     setItems([]);
     setRecipes([]);
     setKnownStores([]);
