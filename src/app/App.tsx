@@ -528,25 +528,23 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-24">
-      <div className="fixed top-4 right-4 z-50">
-        <div className="flex items-center gap-3 px-4 py-2 bg-white/90 backdrop-blur-md border border-gray-200 rounded-full shadow-sm">
-          <div className="text-xs font-semibold text-gray-600">
-            Signed in as{' '}
-            <span className="text-gray-900">{session.user.email ?? 'User'}</span>
-          </div>
-          <button
-            onClick={handleSignOut}
-            className="p-2 rounded-full text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
-            aria-label="Sign out"
-            title="Sign out"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
       {/* Header */}
       <div className="relative h-48 w-full overflow-hidden">
+        <div className="absolute top-4 right-4 z-20">
+          <div className="flex items-center gap-2 text-xs font-semibold text-gray-700 bg-white/70 backdrop-blur-md rounded-full px-3 py-2">
+            <span>
+              Signed in as <span className="text-gray-900">{session.user.email ?? 'User'}</span>
+            </span>
+            <button
+              onClick={handleSignOut}
+              className="p-2 text-gray-500 hover:text-red-600 transition-colors"
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
         <ImageWithFallback
           src="https://images.unsplash.com/photo-1610636996379-4d184e2ef20a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmcmVzaCUyMGdyb2NlcmllcyUyMG1hcmtldHxlbnwxfHx8fDE3Njk3Mjg5MzJ8MA&ixlib=rb-4.1.0&q=80&w=1080"
           alt="Groceries"
