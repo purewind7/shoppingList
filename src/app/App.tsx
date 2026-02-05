@@ -11,6 +11,7 @@ import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { RecipeList } from '@/app/components/RecipeList';
 import { AddRecipeModal } from '@/app/components/AddRecipeModal';
 import { RecipeImportModal } from '@/app/components/RecipeImportModal';
+import { StoreManagerModal } from '@/app/components/StoreManagerModal';
 import { ITEM_COLORS } from '@/app/colors';
 
 interface Item {
@@ -41,6 +42,7 @@ const DEFAULT_STORES = ['Costco', "Trader Joe's", '99 Ranch', 'H mart'];
 export default function App() {
   const [items, setItems] = useState<Item[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [knownStores, setKnownStores] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [session, setSession] = useState<Session | null>(null);
@@ -52,6 +54,7 @@ export default function App() {
   const [dataLoading, setDataLoading] = useState(false);
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -78,12 +81,13 @@ export default function App() {
       if (!session?.user) {
         setItems([]);
         setRecipes([]);
+        setKnownStores([]);
         return;
       }
 
       setDataLoading(true);
 
-      const [itemsResult, recipesResult] = await Promise.all([
+      const [itemsResult, recipesResult, storesResult] = await Promise.all([
         supabase
           .from('grocery_items')
           .select('id,name,supermarket,completed,created_at')
@@ -91,6 +95,10 @@ export default function App() {
         supabase
           .from('recipes')
           .select('id,name,created_at,recipe_ingredients(id,name,supermarket)')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('stores')
+          .select('name')
           .order('created_at', { ascending: false }),
       ]);
 
@@ -126,6 +134,15 @@ export default function App() {
         );
       }
 
+      if (storesResult.error) {
+        console.error(storesResult.error);
+      } else if (storesResult.data) {
+        const storeNames = storesResult.data
+          .map((row) => row.name)
+          .filter((name): name is string => Boolean(name && name.trim()));
+        setKnownStores(storeNames);
+      }
+
       setDataLoading(false);
     };
 
@@ -134,6 +151,11 @@ export default function App() {
 
   const uniqueSupermarkets = useMemo(() => {
     const stores = new Set<string>(DEFAULT_STORES);
+
+    knownStores.forEach((store) => {
+      const trimmed = store.trim();
+      if (trimmed) stores.add(trimmed);
+    });
 
     items.forEach((item) => {
       item.supermarket
@@ -151,7 +173,16 @@ export default function App() {
     });
 
     return Array.from(stores).sort((a, b) => a.localeCompare(b));
-  }, [items, recipes]);
+  }, [items, recipes, knownStores]);
+
+  const managedStores = useMemo(() => {
+    const stores = new Set<string>(DEFAULT_STORES);
+    knownStores.forEach((store) => {
+      const trimmed = store.trim();
+      if (trimmed) stores.add(trimmed);
+    });
+    return Array.from(stores).sort((a, b) => a.localeCompare(b));
+  }, [knownStores]);
 
   const filteredItems = items.filter(
     (item) =>
@@ -224,6 +255,55 @@ export default function App() {
       },
       ...prev,
     ]);
+  };
+
+  const handleAddStore = async (storeName: string) => {
+    if (!session?.user) return;
+    const trimmed = storeName.trim();
+    if (!trimmed) return;
+
+    const exists = [...DEFAULT_STORES, ...knownStores].some(
+      (store) => store.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (exists) return;
+
+    const { data, error } = await supabase
+      .from('stores')
+      .insert({
+        user_id: session.user.id,
+        name: trimmed,
+      })
+      .select('name')
+      .single();
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    if (data?.name) {
+      setKnownStores((prev) => [data.name, ...prev]);
+    }
+  };
+
+  const handleRemoveStore = async (storeName: string) => {
+    if (!session?.user) return;
+    const trimmed = storeName.trim();
+    if (!trimmed) return;
+    if (DEFAULT_STORES.some((store) => store.toLowerCase() === trimmed.toLowerCase())) return;
+
+    const { error } = await supabase
+      .from('stores')
+      .delete()
+      .eq('user_id', session.user.id)
+      .eq('name', trimmed);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setKnownStores((prev) => prev.filter((store) => store.toLowerCase() !== trimmed.toLowerCase()));
   };
 
   const handleAddRecipe = async (name: string, ingredients: Ingredient[]) => {
@@ -387,6 +467,7 @@ export default function App() {
     await supabase.auth.signOut();
     setItems([]);
     setRecipes([]);
+    setKnownStores([]);
   };
 
   const completedCount = items.filter((item) => item.completed).length;
@@ -499,7 +580,11 @@ export default function App() {
           </div>
         ) : (
           <div className="space-y-4">
-            <AddItem onAdd={addItem} supermarkets={uniqueSupermarkets} />
+            <AddItem
+              onAdd={addItem}
+              supermarkets={uniqueSupermarkets}
+              onManageStores={() => setIsStoreModalOpen(true)}
+            />
           </div>
         )}
 
@@ -673,6 +758,7 @@ export default function App() {
         onClose={() => setIsRecipeModalOpen(false)}
         onSave={handleAddRecipe}
         supermarkets={uniqueSupermarkets}
+        onManageStores={() => setIsStoreModalOpen(true)}
       />
 
       <RecipeImportModal
@@ -680,6 +766,15 @@ export default function App() {
         onClose={() => setIsImportModalOpen(false)}
         recipes={recipes}
         onImport={handleImportIngredients}
+      />
+
+      <StoreManagerModal
+        isOpen={isStoreModalOpen}
+        onClose={() => setIsStoreModalOpen(false)}
+        stores={managedStores}
+        defaultStores={DEFAULT_STORES}
+        onAddStore={handleAddStore}
+        onRemoveStore={handleRemoveStore}
       />
     </div>
   );

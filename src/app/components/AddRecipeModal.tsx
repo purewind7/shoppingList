@@ -15,6 +15,7 @@ interface AddRecipeModalProps {
   onClose: () => void;
   onSave: (name: string, ingredients: Ingredient[]) => void;
   supermarkets: string[];
+  onManageStores?: () => void;
 }
 
 export const AddRecipeModal: React.FC<AddRecipeModalProps> = ({
@@ -22,6 +23,7 @@ export const AddRecipeModal: React.FC<AddRecipeModalProps> = ({
   onClose,
   onSave,
   supermarkets,
+  onManageStores,
 }) => {
   const [recipeName, setRecipeName] = useState('');
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -114,6 +116,7 @@ export const AddRecipeModal: React.FC<AddRecipeModalProps> = ({
                   onCancel={() => setIsAddingIngredient(false)}
                   submitLabel="Add Ingredient"
                   autoFocus={true}
+                  onManageStores={onManageStores}
                 />
               </div>
             ) : (

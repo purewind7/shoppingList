@@ -5,9 +5,10 @@ import { ItemForm } from './ItemForm';
 interface AddItemProps {
   onAdd: (name: string, supermarket: string) => void;
   supermarkets: string[];
+  onManageStores?: () => void;
 }
 
-export const AddItem: React.FC<AddItemProps> = ({ onAdd, supermarkets }) => {
+export const AddItem: React.FC<AddItemProps> = ({ onAdd, supermarkets, onManageStores }) => {
   const [isAdding, setIsAdding] = useState(false);
 
   const handleAdd = (name: string, supermarket: string) => {
@@ -30,6 +31,7 @@ export const AddItem: React.FC<AddItemProps> = ({ onAdd, supermarkets }) => {
           supermarkets={supermarkets}
           onSubmit={handleAdd}
           onCancel={() => setIsAdding(false)}
+          onManageStores={onManageStores}
         />
       )}
     </div>
