@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Trash2, Store, Tag } from 'lucide-react';
+import { Check, Trash2, Store, Pencil } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface GroceryItemProps {
@@ -10,11 +10,12 @@ interface GroceryItemProps {
     completed: boolean;
   };
   onToggle: (id: string) => void;
+  onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   highlightColor?: string;
 }
 
-export const GroceryItem: React.FC<GroceryItemProps> = ({ item, onToggle, onDelete, highlightColor }) => {
+export const GroceryItem: React.FC<GroceryItemProps> = ({ item, onToggle, onEdit, onDelete, highlightColor }) => {
   return (
     <motion.div
       layout
@@ -60,12 +61,24 @@ export const GroceryItem: React.FC<GroceryItemProps> = ({ item, onToggle, onDele
         </div>
       </div>
 
-      <button
-        onClick={() => onDelete(item.id)}
-        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-      >
-        <Trash2 className="w-5 h-5" />
-      </button>
+      <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+        <button
+          onClick={() => onEdit(item.id)}
+          className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+          aria-label="Edit item"
+          title="Edit item"
+        >
+          <Pencil className="w-5 h-5" />
+        </button>
+        <button
+          onClick={() => onDelete(item.id)}
+          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+          aria-label="Delete item"
+          title="Delete item"
+        >
+          <Trash2 className="w-5 h-5" />
+        </button>
+      </div>
     </motion.div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Store } from 'lucide-react';
 
 interface ItemFormProps {
@@ -8,6 +8,8 @@ interface ItemFormProps {
   submitLabel?: string;
   autoFocus?: boolean;
   onManageStores?: () => void;
+  initialName?: string;
+  initialSupermarkets?: string[];
 }
 
 export const ItemForm: React.FC<ItemFormProps> = ({ 
@@ -16,10 +18,17 @@ export const ItemForm: React.FC<ItemFormProps> = ({
   onCancel,
   submitLabel = "Add to List",
   autoFocus = true,
-  onManageStores
+  onManageStores,
+  initialName = '',
+  initialSupermarkets = []
 }) => {
-  const [name, setName] = useState('');
-  const [selectedSupermarkets, setSelectedSupermarkets] = useState<string[]>([]);
+  const [name, setName] = useState(initialName);
+  const [selectedSupermarkets, setSelectedSupermarkets] = useState<string[]>(initialSupermarkets);
+
+  useEffect(() => {
+    setName(initialName);
+    setSelectedSupermarkets(initialSupermarkets);
+  }, [initialName, initialSupermarkets]);
 
   const toggleSupermarket = (store: string) => {
     setSelectedSupermarkets((prev) =>

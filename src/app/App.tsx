@@ -11,6 +11,7 @@ import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { RecipeList } from '@/app/components/RecipeList';
 import { AddRecipeModal } from '@/app/components/AddRecipeModal';
 import { RecipeImportModal } from '@/app/components/RecipeImportModal';
+import { EditItemModal } from '@/app/components/EditItemModal';
 import { StoreManagerModal } from '@/app/components/StoreManagerModal';
 import { ITEM_COLORS } from '@/app/colors';
 
@@ -55,6 +56,7 @@ export default function App() {
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<Item | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -255,6 +257,34 @@ export default function App() {
       },
       ...prev,
     ]);
+  };
+
+  const handleEditItem = async (id: string, name: string, supermarket: string) => {
+    const { data, error } = await supabase
+      .from('grocery_items')
+      .update({ name, supermarket: supermarket || 'General' })
+      .eq('id', id)
+      .select('id,name,supermarket,completed,created_at')
+      .single();
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              id: data.id,
+              name: data.name,
+              supermarket: data.supermarket ?? 'General',
+              completed: data.completed,
+              createdAt: new Date(data.created_at).getTime(),
+            }
+          : item
+      )
+    );
   };
 
   const handleAddStore = async (storeName: string) => {
@@ -680,6 +710,10 @@ export default function App() {
                       key={item.id}
                       item={item}
                       onToggle={toggleItem}
+                      onEdit={(id) => {
+                        const target = items.find((entry) => entry.id === id);
+                        if (target) setEditingItem(target);
+                      }}
                       onDelete={deleteItem}
                     />
                   ))
@@ -719,6 +753,10 @@ export default function App() {
                               key={item.id}
                               item={item}
                               onToggle={toggleItem}
+                              onEdit={(id) => {
+                                const target = items.find((entry) => entry.id === id);
+                                if (target) setEditingItem(target);
+                              }}
                               onDelete={deleteItem}
                               highlightColor={itemColorMap[item.name.trim().toLowerCase()]}
                             />
@@ -782,6 +820,24 @@ export default function App() {
         defaultStores={DEFAULT_STORES}
         onAddStore={handleAddStore}
         onRemoveStore={handleRemoveStore}
+      />
+
+      <EditItemModal
+        isOpen={Boolean(editingItem)}
+        onClose={() => setEditingItem(null)}
+        onSave={(name, supermarket) => {
+          if (editingItem) {
+            handleEditItem(editingItem.id, name, supermarket);
+          }
+        }}
+        supermarkets={uniqueSupermarkets}
+        onManageStores={() => setIsStoreModalOpen(true)}
+        initialName={editingItem?.name ?? ''}
+        initialSupermarkets={
+          editingItem?.supermarket
+            ? editingItem.supermarket.split(',').map((s) => s.trim()).filter(Boolean)
+            : []
+        }
       />
     </div>
   );
