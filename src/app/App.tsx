@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ShoppingBasket, LayoutGrid, Store, Search, BookOpen, Plus, Download, LogOut, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { Session } from '@supabase/supabase-js';
@@ -38,6 +38,7 @@ interface Recipe {
 }
 
 type TabType = 'all' | 'by-store' | 'recipes';
+const TAB_ORDER: TabType[] = ['all', 'by-store', 'recipes'];
 
 const DEFAULT_STORES = ['Costco', "Trader Joe's", '99 Ranch', 'H mart'];
 
@@ -60,6 +61,9 @@ export default function App() {
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [tabTransitionDir, setTabTransitionDir] = useState(0);
+  const swipeStartXRef = useRef<number | null>(null);
+  const swipeStartYRef = useRef<number | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -637,6 +641,42 @@ export default function App() {
 
   const completedCount = items.filter((item) => item.completed).length;
 
+  const switchTab = (nextTab: TabType) => {
+    if (nextTab === activeTab) return;
+    const currentIndex = TAB_ORDER.indexOf(activeTab);
+    const nextIndex = TAB_ORDER.indexOf(nextTab);
+    setTabTransitionDir(nextIndex > currentIndex ? 1 : -1);
+    setActiveTab(nextTab);
+  };
+
+  const handleSwipeStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    swipeStartXRef.current = event.touches[0]?.clientX ?? null;
+    swipeStartYRef.current = event.touches[0]?.clientY ?? null;
+  };
+
+  const handleSwipeEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (swipeStartXRef.current === null || swipeStartYRef.current === null) return;
+
+    const endX = event.changedTouches[0]?.clientX ?? swipeStartXRef.current;
+    const endY = event.changedTouches[0]?.clientY ?? swipeStartYRef.current;
+    const deltaX = endX - swipeStartXRef.current;
+    const deltaY = endY - swipeStartYRef.current;
+
+    swipeStartXRef.current = null;
+    swipeStartYRef.current = null;
+
+    if (Math.abs(deltaX) < 60 || Math.abs(deltaY) > 40) return;
+
+    const currentIndex = TAB_ORDER.indexOf(activeTab);
+    if (currentIndex === -1) return;
+
+    if (deltaX < 0 && currentIndex < TAB_ORDER.length - 1) {
+      switchTab(TAB_ORDER[currentIndex + 1]);
+    } else if (deltaX > 0 && currentIndex > 0) {
+      switchTab(TAB_ORDER[currentIndex - 1]);
+    }
+  };
+
   if (!authReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC] text-gray-600">
@@ -772,7 +812,7 @@ export default function App() {
         <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 mb-6 sticky top-4 z-20">
           <div className="flex gap-1 mb-2">
             <button
-              onClick={() => setActiveTab('all')}
+              onClick={() => switchTab('all')}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
                 activeTab === 'all' ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-50'
               }`}
@@ -781,7 +821,7 @@ export default function App() {
               All Items
             </button>
             <button
-              onClick={() => setActiveTab('by-store')}
+              onClick={() => switchTab('by-store')}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
                 activeTab === 'by-store'
                   ? 'bg-blue-50 text-blue-600'
@@ -792,7 +832,7 @@ export default function App() {
               By Store
             </button>
             <button
-              onClick={() => setActiveTab('recipes')}
+              onClick={() => switchTab('recipes')}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
                 activeTab === 'recipes'
                   ? 'bg-orange-50 text-orange-600'
@@ -830,14 +870,16 @@ export default function App() {
         )}
 
         {/* Content */}
-        <div className="space-y-6">
-          <AnimatePresence mode="popLayout">
+        <div className="space-y-6" onTouchStart={handleSwipeStart} onTouchEnd={handleSwipeEnd}>
+          <AnimatePresence mode="wait" custom={tabTransitionDir} initial={false}>
             {activeTab === 'all' && (
               <motion.div
                 key="all-list"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+                custom={tabTransitionDir}
+                initial={{ opacity: 0, x: tabTransitionDir > 0 ? 36 : -36 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: tabTransitionDir > 0 ? -36 : 36 }}
+                transition={{ duration: 0.22, ease: 'easeOut' }}
                 className="space-y-1"
               >
                 {filteredItems.length === 0 ? (
@@ -867,9 +909,11 @@ export default function App() {
             {activeTab === 'by-store' && (
               <motion.div
                 key="store-list"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+                custom={tabTransitionDir}
+                initial={{ opacity: 0, x: tabTransitionDir > 0 ? 36 : -36 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: tabTransitionDir > 0 ? -36 : 36 }}
+                transition={{ duration: 0.22, ease: 'easeOut' }}
                 className="space-y-8"
               >
                 {Object.keys(itemsByStore).length === 0 ? (
@@ -914,9 +958,11 @@ export default function App() {
             {activeTab === 'recipes' && (
               <motion.div
                 key="recipe-list"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+                custom={tabTransitionDir}
+                initial={{ opacity: 0, x: tabTransitionDir > 0 ? 36 : -36 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: tabTransitionDir > 0 ? -36 : 36 }}
+                transition={{ duration: 0.22, ease: 'easeOut' }}
               >
                 <RecipeList
                   recipes={recipes}
