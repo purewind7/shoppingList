@@ -159,45 +159,9 @@ export default function App() {
         console.error(storesResult.error);
       } else if (dbStores.length) {
         const storeNames = dbStores
-          .flatMap((row) => row.name?.split(',') ?? [])
-          .map((name) => name.trim())
-          .filter(Boolean);
+          .map((row) => row.name?.trim() ?? '')
+          .filter((name) => name && !name.includes(','));
         setKnownStores(Array.from(new Set(storeNames)));
-      }
-
-      if (itemRows.length) {
-        const storeFromItems = itemRows
-          .flatMap((row) => row.supermarket?.split(',') ?? [])
-          .map((name) => name.trim())
-          .filter(Boolean);
-        const existing = new Set(
-          [...DEFAULT_STORES, ...dbStores.map((row) => row.name ?? '')]
-            .map((store) => store.trim())
-            .filter(Boolean)
-            .map((store) => store.toLowerCase())
-        );
-        const missingStores = Array.from(new Set(storeFromItems)).filter(
-          (store) => !existing.has(store.toLowerCase())
-        );
-
-        if (missingStores.length > 0 && session?.user) {
-          const { data, error } = await supabase
-            .from('stores')
-            .insert(missingStores.map((name) => ({ user_id: session.user.id, name })))
-            .select('name');
-
-          if (error) {
-            console.error(error);
-          } else if (data?.length) {
-            setKnownStores((prev) => {
-              const next = new Set(prev);
-              data.forEach((row) => {
-                if (row.name) next.add(row.name);
-              });
-              return Array.from(next);
-            });
-          }
-        }
       }
 
     setDataLoading(false);
@@ -215,23 +179,8 @@ export default function App() {
       if (trimmed) stores.add(trimmed);
     });
 
-    items.forEach((item) => {
-      item.supermarket
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .forEach((store) => stores.add(store));
-    });
-
-    recipes.forEach((recipe) => {
-      recipe.ingredients.forEach((ingredient) => {
-        const trimmed = ingredient.supermarket?.trim();
-        if (trimmed) stores.add(trimmed);
-      });
-    });
-
     return Array.from(stores).sort((a, b) => a.localeCompare(b));
-  }, [items, recipes, knownStores]);
+  }, [knownStores]);
 
   const managedStores = useMemo(() => {
     const stores = new Set<string>(DEFAULT_STORES);
@@ -345,24 +294,17 @@ export default function App() {
 
   const handleAddStore = async (storeName: string) => {
     if (!session?.user) return;
-    const normalizedStores = storeName
-      .split(',')
-      .map((name) => name.trim())
-      .filter(Boolean);
-    if (normalizedStores.length === 0) return;
+    const normalized = storeName.trim();
+    if (!normalized || normalized.includes(',')) return;
 
     const existing = new Set(
       [...DEFAULT_STORES, ...knownStores].map((store) => store.toLowerCase())
     );
-    const toInsert = normalizedStores.filter(
-      (store) => !existing.has(store.toLowerCase())
-    );
-
-    if (toInsert.length === 0) return;
+    if (existing.has(normalized.toLowerCase())) return;
 
     const { data, error } = await supabase
       .from('stores')
-      .insert(toInsert.map((name) => ({ user_id: session.user.id, name })))
+      .insert([{ user_id: session.user.id, name: normalized }])
       .select('name');
 
     if (error) {
