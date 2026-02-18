@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { asBoolean, asOptionalString } from '../../_lib/validators';
 import { getAuthedSupabase, isResponse, jsonError } from '../../_lib/supabase';
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: NextRequest, { params }: Params) {
   const ctx = await getAuthedSupabase(req);
   if (isResponse(ctx)) return ctx;
   const { supabase, user } = ctx;
-  const { id } = params;
+  const { id } = await params;
 
   let body: unknown;
   try {
@@ -66,7 +66,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   const ctx = await getAuthedSupabase(req);
   if (isResponse(ctx)) return ctx;
   const { supabase, user } = ctx;
-  const { id } = params;
+  const { id } = await params;
 
   const { error } = await supabase.from('grocery_items').delete().eq('id', id);
   if (error) return jsonError(error.message, 500);
