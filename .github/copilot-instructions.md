@@ -16,8 +16,10 @@ Do not implement new persistence using `localStorage`. Persistence is database-b
 ### Entry Points
 - `app/layout.tsx`: global metadata, icon/manifest configuration, global CSS import
 - `app/page.tsx`: mounts `src/app/App.tsx`
-- `src/app/App.tsx`: state orchestration, auth lifecycle, CRUD, tab switching, swipe interactions
+- `src/app/App.tsx`: state orchestration, auth lifecycle, tab switching, swipe interactions
 - `src/lib/supabaseClient.ts`: browser Supabase client initialization from env vars
+- `src/lib/apiClient.ts`: authenticated client for internal `/api/*` route handlers
+- `app/api/*`: route handlers for CRUD, validation, and request-level logging
 
 ### Domain Data (Postgres)
 - `grocery_items`: user-owned shopping items
@@ -46,7 +48,7 @@ RLS policies enforce user ownership:
 
 ### CRUD Pattern
 In `src/app/App.tsx`:
-1. Execute Supabase mutation/query
+1. Call `/api/*` through `src/lib/apiClient.ts`
 2. Handle `error` explicitly
 3. Normalize DB row to UI shape
 4. Update local state immutably
@@ -124,8 +126,9 @@ npm run start
 1. Add DB migration under `database/migrations/`
 2. Update `database/schema.sql` baseline
 3. Update TS interfaces in `src/app/App.tsx` and affected components
-4. Update Supabase `select`/`insert`/`update` queries
-5. Ensure UI edit/create flows both handle the new field
+4. Update API route handlers in `app/api/*`
+5. Update `src/lib/apiClient.ts` request/response contracts
+6. Ensure UI edit/create flows both handle the new field
 
 ### When changing forms/modals
 - `ItemForm` is reused by item and ingredient workflows.

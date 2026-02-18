@@ -5,6 +5,19 @@ import { ShoppingBasket, LayoutGrid, Store, Search, BookOpen, Plus, Download, Lo
 import { motion, AnimatePresence } from 'motion/react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
+import {
+  clearCompletedItems,
+  createItem,
+  createRecipe,
+  createStore,
+  deleteItemApi,
+  deleteRecipeApi,
+  deleteStoreApi,
+  getBootstrap,
+  importItems,
+  updateItem,
+  updateRecipeApi,
+} from '@/lib/apiClient';
 import { GroceryItem } from '@/app/components/GroceryItem';
 import { AddItem } from '@/app/components/AddItem';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
@@ -104,67 +117,16 @@ export default function App() {
     }
 
     setDataLoading(true);
-
-    const [itemsResult, recipesResult, storesResult] = await Promise.all([
-      supabase
-        .from('grocery_items')
-        .select('id,name,supermarket,completed,created_at')
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('recipes')
-        .select('id,name,notes,created_at,recipe_ingredients(id,name,supermarket)')
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('stores')
-        .select('name')
-        .order('created_at', { ascending: false }),
-    ]);
-
-      const itemRows = itemsResult.data ?? [];
-      if (itemsResult.error) {
-        console.error(itemsResult.error);
-      } else if (itemRows.length) {
-        setItems(
-          itemRows.map((row) => ({
-            id: row.id,
-            name: row.name,
-            supermarket: row.supermarket ?? 'General',
-            completed: row.completed,
-            createdAt: new Date(row.created_at).getTime(),
-          }))
-        );
-      }
-
-      if (recipesResult.error) {
-        console.error(recipesResult.error);
-      } else if (recipesResult.data) {
-        setRecipes(
-          recipesResult.data.map((row) => ({
-            id: row.id,
-            name: row.name,
-            notes: row.notes ?? '',
-            createdAt: new Date(row.created_at).getTime(),
-            ingredients:
-              row.recipe_ingredients?.map((ingredient) => ({
-                id: ingredient.id,
-                name: ingredient.name,
-                supermarket: ingredient.supermarket ?? 'General',
-              })) ?? [],
-          }))
-        );
-      }
-
-      const dbStores = storesResult.data ?? [];
-      if (storesResult.error) {
-        console.error(storesResult.error);
-      } else if (dbStores.length) {
-        const storeNames = dbStores
-          .map((row) => row.name?.trim() ?? '')
-          .filter((name) => name && !name.includes(','));
-        setKnownStores(Array.from(new Set(storeNames)));
-      }
-
-    setDataLoading(false);
+    try {
+      const payload = await getBootstrap();
+      setItems(payload.items);
+      setRecipes(payload.recipes);
+      setKnownStores(payload.stores);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setDataLoading(false);
+    }
   }, [session?.user]);
 
   useEffect(() => {
@@ -236,60 +198,21 @@ export default function App() {
 
   const addItem = async (name: string, supermarket: string) => {
     if (!session?.user) return;
-
-    const { data, error } = await supabase
-      .from('grocery_items')
-      .insert({
-        user_id: session.user.id,
-        name,
-        supermarket: supermarket || 'General',
-      })
-      .select('id,name,supermarket,completed,created_at')
-      .single();
-
-    if (error) {
+    try {
+      const item = await createItem({ name, supermarket: supermarket || 'General' });
+      setItems((prev) => [item, ...prev]);
+    } catch (error) {
       console.error(error);
-      return;
     }
-
-    setItems((prev) => [
-      {
-        id: data.id,
-        name: data.name,
-        supermarket: data.supermarket ?? 'General',
-        completed: data.completed,
-        createdAt: new Date(data.created_at).getTime(),
-      },
-      ...prev,
-    ]);
   };
 
   const handleEditItem = async (id: string, name: string, supermarket: string) => {
-    const { data, error } = await supabase
-      .from('grocery_items')
-      .update({ name, supermarket: supermarket || 'General' })
-      .eq('id', id)
-      .select('id,name,supermarket,completed,created_at')
-      .single();
-
-    if (error) {
+    try {
+      const updated = await updateItem(id, { name, supermarket: supermarket || 'General' });
+      setItems((prev) => prev.map((item) => (item.id === id ? updated : item)));
+    } catch (error) {
       console.error(error);
-      return;
     }
-
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              id: data.id,
-              name: data.name,
-              supermarket: data.supermarket ?? 'General',
-              completed: data.completed,
-              createdAt: new Date(data.created_at).getTime(),
-            }
-          : item
-      )
-    );
   };
 
   const handleAddStore = async (storeName: string) => {
@@ -302,24 +225,13 @@ export default function App() {
     );
     if (existing.has(normalized.toLowerCase())) return;
 
-    const { data, error } = await supabase
-      .from('stores')
-      .insert([{ user_id: session.user.id, name: normalized }])
-      .select('name');
-
-    if (error) {
+    try {
+      const data = await createStore(normalized);
+      if (data?.name) {
+        setKnownStores((prev) => Array.from(new Set([...prev, data.name])));
+      }
+    } catch (error) {
       console.error(error);
-      return;
-    }
-
-    if (data?.length) {
-      setKnownStores((prev) => {
-        const next = new Set(prev);
-        data.forEach((row) => {
-          if (row.name) next.add(row.name);
-        });
-        return Array.from(next);
-      });
     }
   };
 
@@ -329,155 +241,74 @@ export default function App() {
     if (!trimmed) return;
     if (DEFAULT_STORES.some((store) => store.toLowerCase() === trimmed.toLowerCase())) return;
 
-    const { error } = await supabase
-      .from('stores')
-      .delete()
-      .eq('user_id', session.user.id)
-      .eq('name', trimmed);
-
-    if (error) {
+    try {
+      await deleteStoreApi(trimmed);
+      setKnownStores((prev) => prev.filter((store) => store.toLowerCase() !== trimmed.toLowerCase()));
+    } catch (error) {
       console.error(error);
-      return;
     }
-
-    setKnownStores((prev) => prev.filter((store) => store.toLowerCase() !== trimmed.toLowerCase()));
   };
 
   const handleAddRecipe = async (name: string, ingredients: Ingredient[], notes: string) => {
     if (!session?.user) return;
 
-    const { data: recipeRow, error: recipeError } = await supabase
-      .from('recipes')
-      .insert({
-        user_id: session.user.id,
-        name,
-        notes,
-      })
-      .select('id,name,notes,created_at')
-      .single();
-
-    if (recipeError || !recipeRow) {
-      console.error(recipeError);
-      return;
+    try {
+      const recipe = await createRecipe({ name, notes, ingredients });
+      setRecipes((prev) => [recipe, ...prev]);
+    } catch (error) {
+      console.error(error);
     }
-
-    const { data: ingredientRows, error: ingredientError } = await supabase
-      .from('recipe_ingredients')
-      .insert(
-        ingredients.map((ingredient) => ({
-          recipe_id: recipeRow.id,
-          name: ingredient.name,
-          supermarket: ingredient.supermarket || 'General',
-        }))
-      )
-      .select('id,name,supermarket');
-
-    if (ingredientError) {
-      console.error(ingredientError);
-      return;
-    }
-
-    setRecipes((prev) => [
-      {
-        id: recipeRow.id,
-        name: recipeRow.name,
-        notes: recipeRow.notes ?? '',
-        createdAt: new Date(recipeRow.created_at).getTime(),
-        ingredients:
-          ingredientRows?.map((ingredient) => ({
-            id: ingredient.id,
-            name: ingredient.name,
-            supermarket: ingredient.supermarket ?? 'General',
-          })) ?? [],
-      },
-      ...prev,
-    ]);
   };
 
   const handleDeleteRecipe = async (id: string) => {
-    const { error } = await supabase.from('recipes').delete().eq('id', id);
-    if (error) {
+    try {
+      await deleteRecipeApi(id);
+      setRecipes((prev) => prev.filter((recipe) => recipe.id !== id));
+    } catch (error) {
       console.error(error);
-      return;
     }
-    setRecipes((prev) => prev.filter((recipe) => recipe.id !== id));
   };
 
   const handleImportIngredients = async (ingredients: Ingredient[]) => {
     if (!session?.user || ingredients.length === 0) return;
 
-    const { data, error } = await supabase
-      .from('grocery_items')
-      .insert(
-        ingredients.map((ingredient) => ({
-          user_id: session.user.id,
-          name: ingredient.name,
-          supermarket: ingredient.supermarket || 'General',
-        }))
-      )
-      .select('id,name,supermarket,completed,created_at');
-
-    if (error) {
+    try {
+      const newItems = await importItems(ingredients);
+      setItems((prev) => [...newItems, ...prev]);
+    } catch (error) {
       console.error(error);
-      return;
     }
-
-    const newItems =
-      data?.map((row) => ({
-        id: row.id,
-        name: row.name,
-        supermarket: row.supermarket ?? 'General',
-        completed: row.completed,
-        createdAt: new Date(row.created_at).getTime(),
-      })) ?? [];
-
-    setItems((prev) => [...newItems, ...prev]);
   };
 
   const toggleItem = async (id: string) => {
     const target = items.find((item) => item.id === id);
     if (!target) return;
 
-    const { data, error } = await supabase
-      .from('grocery_items')
-      .update({ completed: !target.completed })
-      .eq('id', id)
-      .select('id,completed')
-      .single();
-
-    if (error) {
+    try {
+      const updated = await updateItem(id, { completed: !target.completed });
+      setItems((prev) => prev.map((item) => (item.id === id ? updated : item)));
+    } catch (error) {
       console.error(error);
-      return;
     }
-
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, completed: data.completed } : item))
-    );
   };
 
   const deleteItem = async (id: string) => {
-    const { error } = await supabase.from('grocery_items').delete().eq('id', id);
-    if (error) {
+    try {
+      await deleteItemApi(id);
+      setItems((prev) => prev.filter((item) => item.id !== id));
+    } catch (error) {
       console.error(error);
-      return;
     }
-    setItems((prev) => prev.filter((item) => item.id !== id));
   };
 
   const clearCompleted = async () => {
     if (!session?.user) return;
-    const { error } = await supabase
-      .from('grocery_items')
-      .delete()
-      .eq('user_id', session.user.id)
-      .eq('completed', true);
-
-    if (error) {
+    try {
+      await clearCompletedItems();
+      setItems((prev) => prev.filter((item) => !item.completed));
+    } catch (error) {
       console.error(error);
-      return;
     }
-
-    setItems((prev) => prev.filter((item) => !item.completed));
   };
 
   const handleSignIn = async () => {
@@ -518,67 +349,12 @@ export default function App() {
   };
 
   const handleUpdateRecipe = async (id: string, name: string, ingredients: Ingredient[], notes: string) => {
-    const { data: recipeRow, error: recipeError } = await supabase
-      .from('recipes')
-      .update({ name, notes })
-      .eq('id', id)
-      .select('id,name,notes,created_at')
-      .single();
-
-    if (recipeError || !recipeRow) {
-      console.error(recipeError);
-      return;
+    try {
+      const updated = await updateRecipeApi(id, { name, notes, ingredients });
+      setRecipes((prev) => prev.map((recipe) => (recipe.id === id ? updated : recipe)));
+    } catch (error) {
+      console.error(error);
     }
-
-    const { error: deleteError } = await supabase
-      .from('recipe_ingredients')
-      .delete()
-      .eq('recipe_id', id);
-
-    if (deleteError) {
-      console.error(deleteError);
-      return;
-    }
-
-    let ingredientRows: Ingredient[] = [];
-    if (ingredients.length > 0) {
-      const { data, error: ingredientError } = await supabase
-        .from('recipe_ingredients')
-        .insert(
-          ingredients.map((ingredient) => ({
-            recipe_id: id,
-            name: ingredient.name,
-            supermarket: ingredient.supermarket || 'General',
-          }))
-        )
-        .select('id,name,supermarket');
-
-      if (ingredientError) {
-        console.error(ingredientError);
-        return;
-      }
-
-      ingredientRows =
-        data?.map((ingredient) => ({
-          id: ingredient.id,
-          name: ingredient.name,
-          supermarket: ingredient.supermarket ?? 'General',
-        })) ?? [];
-    }
-
-    setRecipes((prev) =>
-      prev.map((recipe) =>
-        recipe.id === id
-          ? {
-              id: recipeRow.id,
-              name: recipeRow.name,
-              notes: recipeRow.notes ?? '',
-              createdAt: new Date(recipeRow.created_at).getTime(),
-              ingredients: ingredientRows,
-            }
-          : recipe
-      )
-    );
   };
 
   const completedCount = items.filter((item) => item.completed).length;
