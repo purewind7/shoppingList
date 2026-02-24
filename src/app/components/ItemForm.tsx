@@ -10,24 +10,39 @@ interface ItemFormProps {
   onManageStores?: () => void;
   initialName?: string;
   initialSupermarkets?: string[];
+  itemNameSuggestions?: Array<{ name: string; supermarket: string }>;
 }
 
-export const ItemForm: React.FC<ItemFormProps> = ({ 
-  supermarkets, 
-  onSubmit, 
+export const ItemForm: React.FC<ItemFormProps> = ({
+  supermarkets,
+  onSubmit,
   onCancel,
-  submitLabel = "Add to List",
+  submitLabel = 'Add to List',
   autoFocus = true,
   onManageStores,
   initialName,
-  initialSupermarkets
+  initialSupermarkets,
+  itemNameSuggestions = [],
 }) => {
-  const resolvedInitialStores = useMemo(
-    () => initialSupermarkets ?? [],
-    [initialSupermarkets]
-  );
+  const resolvedInitialStores = useMemo(() => initialSupermarkets ?? [], [initialSupermarkets]);
   const [name, setName] = useState(initialName ?? '');
   const [selectedSupermarkets, setSelectedSupermarkets] = useState<string[]>(resolvedInitialStores);
+
+  const suggestionLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    itemNameSuggestions.forEach((entry) => {
+      const key = entry.name.trim().toLowerCase();
+      if (key) {
+        map.set(key, entry.supermarket ?? 'General');
+      }
+    });
+    return map;
+  }, [itemNameSuggestions]);
+
+  const suggestionNames = useMemo(
+    () => Array.from(new Set(itemNameSuggestions.map((entry) => entry.name.trim()).filter(Boolean))),
+    [itemNameSuggestions]
+  );
 
   useEffect(() => {
     setName(initialName ?? '');
@@ -38,6 +53,19 @@ export const ItemForm: React.FC<ItemFormProps> = ({
     setSelectedSupermarkets((prev) =>
       prev.includes(store) ? prev.filter((s) => s !== store) : [...prev, store]
     );
+  };
+
+  const handleNameChange = (value: string) => {
+    setName(value);
+    const suggestedStores = suggestionLookup.get(value.trim().toLowerCase());
+    if (!suggestedStores) {
+      return;
+    }
+    const normalized = suggestedStores
+      .split(',')
+      .map((store) => store.trim())
+      .filter((store) => store && supermarkets.includes(store));
+    setSelectedSupermarkets(Array.from(new Set(normalized)));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -53,7 +81,10 @@ export const ItemForm: React.FC<ItemFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xl animate-in fade-in slide-in-from-top-4 duration-300">
+    <form
+      onSubmit={handleSubmit}
+      className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xl animate-in fade-in slide-in-from-top-4 duration-300"
+    >
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1.5">What do you need?</label>
@@ -61,12 +92,20 @@ export const ItemForm: React.FC<ItemFormProps> = ({
             autoFocus={autoFocus}
             type="text"
             placeholder="e.g. Oat Milk, Apples..."
+            list={suggestionNames.length > 0 ? 'item-name-suggestions' : undefined}
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => handleNameChange(e.target.value)}
             className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
           />
+          {suggestionNames.length > 0 && (
+            <datalist id="item-name-suggestions">
+              {suggestionNames.map((suggestion) => (
+                <option key={suggestion} value={suggestion} />
+              ))}
+            </datalist>
+          )}
         </div>
-        
+
         <div>
           <div className="flex items-center justify-between gap-3 mb-2">
             <label className="block text-sm font-semibold text-gray-700">Supermarkets</label>

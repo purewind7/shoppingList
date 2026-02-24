@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
   if (isResponse(ctx)) return ctx;
   const { supabase, user } = ctx;
 
-  const [itemsRes, recipesRes, storesRes] = await Promise.all([
+  const [itemsRes, recipesRes, storesRes, suggestionsRes] = await Promise.all([
     supabase
       .from('grocery_items')
       .select('id,name,supermarket,completed,created_at')
@@ -16,11 +16,16 @@ export async function GET(req: NextRequest) {
       .select('id,name,notes,created_at,recipe_ingredients(id,name,supermarket)')
       .order('created_at', { ascending: false }),
     supabase.from('stores').select('name').order('created_at', { ascending: false }),
+    supabase
+      .from('removed_item_suggestions')
+      .select('name,supermarket')
+      .order('updated_at', { ascending: false }),
   ]);
 
   if (itemsRes.error) return jsonError(itemsRes.error.message, 500);
   if (recipesRes.error) return jsonError(recipesRes.error.message, 500);
   if (storesRes.error) return jsonError(storesRes.error.message, 500);
+  if (suggestionsRes.error) return jsonError(suggestionsRes.error.message, 500);
 
   const items = (itemsRes.data ?? []).map((row) => ({
     id: row.id,
@@ -51,5 +56,10 @@ export async function GET(req: NextRequest) {
     )
   );
 
-  return NextResponse.json({ items, recipes, stores, userId: user.id });
+  const removedSuggestions = (suggestionsRes.data ?? []).map((row) => ({
+    name: row.name,
+    supermarket: row.supermarket ?? 'General',
+  }));
+
+  return NextResponse.json({ items, recipes, stores, removedSuggestions, userId: user.id });
 }

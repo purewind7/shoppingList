@@ -41,10 +41,23 @@ create table if not exists public.stores (
 create index if not exists stores_user_id_idx
   on public.stores(user_id);
 
+create table if not exists public.removed_item_suggestions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  supermarket text not null default 'General',
+  updated_at timestamptz not null default now(),
+  unique (user_id, name)
+);
+
+create index if not exists removed_item_suggestions_user_id_idx
+  on public.removed_item_suggestions(user_id);
+
 alter table public.grocery_items enable row level security;
 alter table public.recipes enable row level security;
 alter table public.recipe_ingredients enable row level security;
 alter table public.stores enable row level security;
+alter table public.removed_item_suggestions enable row level security;
 
 create policy "Users can read their grocery items"
 on public.grocery_items for select
@@ -118,4 +131,16 @@ with check (auth.uid() = user_id);
 
 create policy "Users can delete their stores"
 on public.stores for delete
+using (auth.uid() = user_id);
+
+create policy "Users can read their removed item suggestions"
+on public.removed_item_suggestions for select
+using (auth.uid() = user_id);
+
+create policy "Users can insert their removed item suggestions"
+on public.removed_item_suggestions for insert
+with check (auth.uid() = user_id);
+
+create policy "Users can update their removed item suggestions"
+on public.removed_item_suggestions for update
 using (auth.uid() = user_id);

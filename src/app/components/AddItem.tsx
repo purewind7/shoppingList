@@ -6,9 +6,15 @@ interface AddItemProps {
   onAdd: (name: string, supermarket: string) => void;
   supermarkets: string[];
   onManageStores?: () => void;
+  itemNameSuggestions?: Array<{ name: string; supermarket: string }>;
 }
 
-export const AddItem: React.FC<AddItemProps> = ({ onAdd, supermarkets, onManageStores }) => {
+export const AddItem: React.FC<AddItemProps> = ({
+  onAdd,
+  supermarkets,
+  onManageStores,
+  itemNameSuggestions,
+}) => {
   const [isAdding, setIsAdding] = useState(false);
 
   const handleAdd = (name: string, supermarket: string) => {
@@ -32,6 +38,7 @@ export const AddItem: React.FC<AddItemProps> = ({ onAdd, supermarkets, onManageS
           onSubmit={handleAdd}
           onCancel={() => setIsAdding(false)}
           onManageStores={onManageStores}
+          itemNameSuggestions={itemNameSuggestions}
         />
       )}
     </div>

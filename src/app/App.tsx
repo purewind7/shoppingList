@@ -50,6 +50,11 @@ interface Recipe {
   createdAt: number;
 }
 
+interface RemovedItemSuggestion {
+  name: string;
+  supermarket: string;
+}
+
 type TabType = 'all' | 'by-store' | 'recipes';
 const TAB_ORDER: TabType[] = ['all', 'by-store', 'recipes'];
 
@@ -59,6 +64,7 @@ export default function App() {
   const [items, setItems] = useState<Item[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [knownStores, setKnownStores] = useState<string[]>([]);
+  const [removedSuggestions, setRemovedSuggestions] = useState<RemovedItemSuggestion[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [session, setSession] = useState<Session | null>(null);
@@ -113,6 +119,7 @@ export default function App() {
       setItems([]);
       setRecipes([]);
       setKnownStores([]);
+      setRemovedSuggestions([]);
       return;
     }
 
@@ -122,6 +129,7 @@ export default function App() {
       setItems(payload.items);
       setRecipes(payload.recipes);
       setKnownStores(payload.stores);
+      setRemovedSuggestions(payload.removedSuggestions ?? []);
     } catch (error) {
       console.error(error);
     } finally {
@@ -294,8 +302,16 @@ export default function App() {
 
   const deleteItem = async (id: string) => {
     try {
-      await deleteItemApi(id);
+      const result = await deleteItemApi(id);
       setItems((prev) => prev.filter((item) => item.id !== id));
+      if (result.removedSuggestion?.name) {
+        setRemovedSuggestions((prev) => {
+          const next = new Map<string, RemovedItemSuggestion>();
+          prev.forEach((entry) => next.set(entry.name.trim().toLowerCase(), entry));
+          next.set(result.removedSuggestion!.name.trim().toLowerCase(), result.removedSuggestion);
+          return Array.from(next.values());
+        });
+      }
     } catch (error) {
       console.error(error);
     }
@@ -304,8 +320,16 @@ export default function App() {
   const clearCompleted = async () => {
     if (!session?.user) return;
     try {
-      await clearCompletedItems();
+      const result = await clearCompletedItems();
       setItems((prev) => prev.filter((item) => !item.completed));
+      setRemovedSuggestions((prev) => {
+        const merged = new Map<string, RemovedItemSuggestion>();
+        prev.forEach((entry) => merged.set(entry.name.trim().toLowerCase(), entry));
+        (result.removedSuggestions ?? []).forEach((entry) => {
+          merged.set(entry.name.trim().toLowerCase(), entry);
+        });
+        return Array.from(merged.values());
+      });
     } catch (error) {
       console.error(error);
     }
@@ -346,6 +370,7 @@ export default function App() {
     setItems([]);
     setRecipes([]);
     setKnownStores([]);
+    setRemovedSuggestions([]);
   };
 
   const handleUpdateRecipe = async (id: string, name: string, ingredients: Ingredient[], notes: string) => {
@@ -522,6 +547,7 @@ export default function App() {
               onAdd={addItem}
               supermarkets={uniqueSupermarkets}
               onManageStores={() => setIsStoreModalOpen(true)}
+              itemNameSuggestions={removedSuggestions}
             />
           </div>
         )}

@@ -68,8 +68,35 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   const { supabase, user } = ctx;
   const { id } = await params;
 
+  const { data: itemRow, error: fetchError } = await supabase
+    .from('grocery_items')
+    .select('name,supermarket')
+    .eq('id', id)
+    .single();
+
+  if (fetchError) return jsonError(fetchError.message, 500);
+
+  const suggestion = {
+    user_id: user.id,
+    name: itemRow.name.trim(),
+    supermarket: (itemRow.supermarket ?? 'General').trim() || 'General',
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error: upsertError } = await supabase
+    .from('removed_item_suggestions')
+    .upsert([suggestion], { onConflict: 'user_id,name' });
+
+  if (upsertError) return jsonError(upsertError.message, 500);
+
   const { error } = await supabase.from('grocery_items').delete().eq('id', id);
   if (error) return jsonError(error.message, 500);
   console.info('[api/items/:id][DELETE] deleted', { userId: user.id, itemId: id });
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    removedSuggestion: {
+      name: suggestion.name,
+      supermarket: suggestion.supermarket,
+    },
+  });
 }

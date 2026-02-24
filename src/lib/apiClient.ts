@@ -61,6 +61,7 @@ export type ApiBootstrap = {
   items: ApiItem[];
   recipes: ApiRecipe[];
   stores: string[];
+  removedSuggestions: Array<{ name: string; supermarket: string }>;
 };
 
 export const getBootstrap = () => apiRequest<ApiBootstrap>('/api/bootstrap');
@@ -74,10 +75,16 @@ export const updateItem = (
 ) => apiRequest<ApiItem>(`/api/items/${id}`, { method: 'PATCH', body: payload });
 
 export const deleteItemApi = (id: string) =>
-  apiRequest<{ ok: true }>(`/api/items/${id}`, { method: 'DELETE' });
+  apiRequest<{ ok: true; removedSuggestion?: { name: string; supermarket: string } }>(
+    `/api/items/${id}`,
+    { method: 'DELETE' }
+  );
 
 export const clearCompletedItems = () =>
-  apiRequest<{ ok: true }>('/api/items/clear-completed', { method: 'DELETE' });
+  apiRequest<{ ok: true; removedSuggestions: Array<{ name: string; supermarket: string }> }>(
+    '/api/items/clear-completed',
+    { method: 'DELETE' }
+  );
 
 export const importItems = (ingredients: Array<{ name: string; supermarket: string }>) =>
   apiRequest<ApiItem[]>('/api/items/import', { method: 'POST', body: { ingredients } });
