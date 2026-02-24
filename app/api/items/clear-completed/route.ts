@@ -28,10 +28,10 @@ export async function DELETE(req: NextRequest) {
     if (!key) return;
     const stores = (item.supermarket ?? 'General')
       .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean);
+      .map((value: string) => value.trim())
+      .filter((value: string) => Boolean(value));
     if (!normalized.has(key)) normalized.set(key, new Set());
-    stores.forEach((store) => normalized.get(key)?.add(store));
+    stores.forEach((store: string) => normalized.get(key)?.add(store));
   });
 
   const suggestionRows = Array.from(normalized.entries()).map(([nameKey, stores]) => {

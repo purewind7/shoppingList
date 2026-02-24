@@ -304,11 +304,12 @@ export default function App() {
     try {
       const result = await deleteItemApi(id);
       setItems((prev) => prev.filter((item) => item.id !== id));
-      if (result.removedSuggestion?.name) {
+      const removed = result.removedSuggestion;
+      if (removed?.name) {
         setRemovedSuggestions((prev) => {
           const next = new Map<string, RemovedItemSuggestion>();
           prev.forEach((entry) => next.set(entry.name.trim().toLowerCase(), entry));
-          next.set(result.removedSuggestion!.name.trim().toLowerCase(), result.removedSuggestion);
+          next.set(removed.name.trim().toLowerCase(), removed);
           return Array.from(next.values());
         });
       }
