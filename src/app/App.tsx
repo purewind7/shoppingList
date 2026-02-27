@@ -59,6 +59,22 @@ type TabType = 'all' | 'by-store' | 'recipes';
 const TAB_ORDER: TabType[] = ['all', 'by-store', 'recipes'];
 
 const DEFAULT_STORES = ['Costco', "Trader Joe's", '99 Ranch', 'H mart'];
+const TAB_SWIPE_DISTANCE = 36;
+
+const tabMotionVariants = {
+  initial: (dir: number) => ({
+    opacity: 0,
+    x: dir > 0 ? TAB_SWIPE_DISTANCE : -TAB_SWIPE_DISTANCE,
+  }),
+  animate: {
+    opacity: 1,
+    x: 0,
+  },
+  exit: (dir: number) => ({
+    opacity: 0,
+    x: dir > 0 ? -TAB_SWIPE_DISTANCE : TAB_SWIPE_DISTANCE,
+  }),
+};
 
 export default function App() {
   const [items, setItems] = useState<Item[]>([]);
@@ -632,9 +648,10 @@ export default function App() {
               <motion.div
                 key="all-list"
                 custom={tabTransitionDir}
-                initial={{ opacity: 0, x: tabTransitionDir > 0 ? 36 : -36 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: tabTransitionDir > 0 ? -36 : 36 }}
+                variants={tabMotionVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
                 transition={{ duration: 0.22, ease: 'easeOut' }}
                 className="space-y-1"
               >
@@ -666,9 +683,10 @@ export default function App() {
               <motion.div
                 key="store-list"
                 custom={tabTransitionDir}
-                initial={{ opacity: 0, x: tabTransitionDir > 0 ? 36 : -36 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: tabTransitionDir > 0 ? -36 : 36 }}
+                variants={tabMotionVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
                 transition={{ duration: 0.22, ease: 'easeOut' }}
                 className="space-y-8"
               >
@@ -715,9 +733,10 @@ export default function App() {
               <motion.div
                 key="recipe-list"
                 custom={tabTransitionDir}
-                initial={{ opacity: 0, x: tabTransitionDir > 0 ? 36 : -36 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: tabTransitionDir > 0 ? -36 : 36 }}
+                variants={tabMotionVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
                 transition={{ duration: 0.22, ease: 'easeOut' }}
               >
                 <RecipeList
