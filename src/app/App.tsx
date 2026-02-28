@@ -60,6 +60,7 @@ const TAB_ORDER: TabType[] = ['all', 'by-store', 'recipes'];
 
 const DEFAULT_STORES = ['Costco', "Trader Joe's", '99 Ranch', 'H mart'];
 const TAB_SWIPE_DISTANCE = 36;
+const TOGGLE_SYNC_DELAY_MS = 300;
 
 const tabMotionVariants = {
   initial: (dir: number) => ({
@@ -99,6 +100,9 @@ export default function App() {
   const [tabTransitionDir, setTabTransitionDir] = useState(0);
   const swipeStartXRef = useRef<number | null>(null);
   const swipeStartYRef = useRef<number | null>(null);
+  const toggleSyncTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const pendingToggleValueRef = useRef<Record<string, boolean>>({});
+  const toggleInFlightRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     let mounted = true;
@@ -156,6 +160,43 @@ export default function App() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(toggleSyncTimersRef.current).forEach((timer) => clearTimeout(timer));
+    };
+  }, []);
+
+  const flushToggleUpdate = useCallback(
+    async (id: string) => {
+      if (toggleInFlightRef.current.has(id)) return;
+
+      const desiredCompleted = pendingToggleValueRef.current[id];
+      if (desiredCompleted === undefined) return;
+      delete pendingToggleValueRef.current[id];
+
+      toggleInFlightRef.current.add(id);
+      try {
+        const updated = await updateItem(id, { completed: desiredCompleted });
+        setItems((prev) => prev.map((item) => (item.id === id ? updated : item)));
+      } catch (error) {
+        console.error(error);
+        await loadData();
+      } finally {
+        toggleInFlightRef.current.delete(id);
+      }
+
+      if (pendingToggleValueRef.current[id] !== undefined) {
+        if (toggleSyncTimersRef.current[id]) {
+          clearTimeout(toggleSyncTimersRef.current[id]);
+        }
+        toggleSyncTimersRef.current[id] = setTimeout(() => {
+          void flushToggleUpdate(id);
+        }, TOGGLE_SYNC_DELAY_MS);
+      }
+    },
+    [loadData]
+  );
 
   const uniqueSupermarkets = useMemo(() => {
     const stores = new Set<string>(DEFAULT_STORES);
@@ -304,20 +345,36 @@ export default function App() {
     }
   };
 
-  const toggleItem = async (id: string) => {
+  const toggleItem = (id: string) => {
     const target = items.find((item) => item.id === id);
     if (!target) return;
+    const nextCompleted = !target.completed;
 
-    try {
-      const updated = await updateItem(id, { completed: !target.completed });
-      setItems((prev) => prev.map((item) => (item.id === id ? updated : item)));
-    } catch (error) {
-      console.error(error);
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        return { ...item, completed: nextCompleted };
+      })
+    );
+
+    pendingToggleValueRef.current[id] = nextCompleted;
+
+    if (toggleSyncTimersRef.current[id]) {
+      clearTimeout(toggleSyncTimersRef.current[id]);
     }
+    toggleSyncTimersRef.current[id] = setTimeout(() => {
+      void flushToggleUpdate(id);
+    }, TOGGLE_SYNC_DELAY_MS);
   };
 
   const deleteItem = async (id: string) => {
     try {
+      if (toggleSyncTimersRef.current[id]) {
+        clearTimeout(toggleSyncTimersRef.current[id]);
+        delete toggleSyncTimersRef.current[id];
+      }
+      delete pendingToggleValueRef.current[id];
+
       const result = await deleteItemApi(id);
       setItems((prev) => prev.filter((item) => item.id !== id));
       const removed = result.removedSuggestion;
@@ -337,6 +394,16 @@ export default function App() {
   const clearCompleted = async () => {
     if (!session?.user) return;
     try {
+      items
+        .filter((item) => item.completed)
+        .forEach((item) => {
+          if (toggleSyncTimersRef.current[item.id]) {
+            clearTimeout(toggleSyncTimersRef.current[item.id]);
+            delete toggleSyncTimersRef.current[item.id];
+          }
+          delete pendingToggleValueRef.current[item.id];
+        });
+
       const result = await clearCompletedItems();
       setItems((prev) => prev.filter((item) => !item.completed));
       setRemovedSuggestions((prev) => {
