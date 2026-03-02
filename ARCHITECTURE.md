@@ -57,6 +57,67 @@ Database:
 - `database/migrations/20260205_add_stores.sql`: incremental stores table setup.
 - `database/migrations/20260205_add_recipe_notes.sql`: adds `recipes.notes`.
 
+### 2.1 Components architecture (ASCII)
+
+```text
++-----------------------------------------------------------------------------------+
+|                                   Client (Browser)                                |
+|                          Next.js App Router page: app/page.tsx                    |
+|                                    -> App.tsx                                     |
++-----------------------------------------------------------------------------------+
+                                          |
+                                          v
++-----------------------------------------------------------------------------------+
+|                             UI State & Composition Layer                          |
+|                             src/app/App.tsx (Client)                              |
+|                                                                                   |
+|  Tabs: [All Items] [By Store] [Recipes]                                           |
+|   |                                                                               |
+|   +--> AddItem -> ItemForm                                                        |
+|   +--> GroceryItem list                                                           |
+|   +--> RecipeList                                                                 |
+|   +--> AddRecipeModal / EditItemModal / StoreManagerModal / RecipeImportModal     |
+|                                                                                   |
+|  Local state: items, recipes, stores, auth session, removedSuggestions            |
++-----------------------------------------------------------------------------------+
+             |                                     |
+             | REST fetch (CRUD)                   | Auth/session actions
+             v                                     v
++-------------------------------+         +-------------------------------+
+| src/lib/apiClient.ts          |         | src/lib/supabaseClient.ts     |
+| (calls /api/* route handlers) |         | (Supabase Auth SDK on client) |
++-------------------------------+         +-------------------------------+
+             |
+             v
++-----------------------------------------------------------------------------------+
+|                          Next.js Route Handlers (Server)                          |
+|                            app/api/* (App Router API)                             |
+|                                                                                   |
+|  /api/bootstrap                                                                   |
+|  /api/items                                                                       |
+|  /api/items/[id]                                                                  |
+|  /api/items/import                                                                |
+|  /api/items/clear-completed                                                       |
+|  /api/recipes                                                                     |
+|  /api/recipes/[id]                                                                |
+|  /api/stores                                                                      |
+|                                                                                   |
+|  Shared server libs:                                                              |
+|   - app/api/_lib/supabase.ts   (auth + authed supabase client)                    |
+|   - app/api/_lib/validators.ts (input validation)                                 |
++-----------------------------------------------------------------------------------+
+             |
+             v
++-----------------------------------------------------------------------------------+
+|                                   Supabase Backend                                |
+|                            Postgres + Auth + RLS Policies                         |
+|                                                                                   |
+|  Tables: grocery_items, recipes, recipe_ingredients, stores,                      |
+|          removed_item_suggestions                                                 |
+|  Security: row-level policies scoped to authenticated user                        |
++-----------------------------------------------------------------------------------+
+```
+
 ## 3. Runtime Layers
 
 ### Presentation layer
@@ -108,6 +169,71 @@ Important modeling notes:
 - Recipe notes support free-form instructions/quantities/context.
 
 ## 5. Data Flow
+
+### 5.0 Runtime data flow (ASCII)
+
+```text
+┌──────────────────────────┐
+│ User Interaction (UI)    │
+│ - toggle / add / edit    │
+│ - delete / clear done    │
+│ - recipes / stores       │
+└────────────┬─────────────┘
+             │
+             v
+┌──────────────────────────┐
+│ React Components         │
+│ src/app/components/*     │
+│ (forms, lists, modals)   │
+└────────────┬─────────────┘
+             │ callbacks
+             v
+┌──────────────────────────┐
+│ App State Orchestrator   │
+│ src/app/App.tsx          │
+│ - local state update     │
+│ - optimistic UI paths    │
+│ - loadData()/auth sync   │
+└────────────┬─────────────┘
+             │
+             v
+┌──────────────────────────┐
+│ API Client               │
+│ src/lib/apiClient.ts     │
+│ - attaches access token  │
+│ - calls /api/*           │
+└────────────┬─────────────┘
+             │ HTTP
+             v
+┌──────────────────────────┐
+│ Next Route Handlers      │
+│ app/api/*                │
+│ - validate input         │
+│ - map payloads           │
+│ - enforce auth context   │
+└────────────┬─────────────┘
+             │
+             v
+┌──────────────────────────┐
+│ Supabase (Postgres+Auth) │
+│ - RLS policies           │
+│ - CRUD + joins           │
+└────────────┬─────────────┘
+             │ response rows
+             v
+┌──────────────────────────┐
+│ Route JSON Response      │
+│ -> apiClient -> App.tsx  │
+│ -> setState(...)         │
+└────────────┬─────────────┘
+             │
+             v
+┌──────────────────────────┐
+│ Re-rendered UI           │
+│ (All Items / By Store /  │
+│  Recipes tabs)           │
+└──────────────────────────┘
+```
 
 ### 5.1 App bootstrap
 
