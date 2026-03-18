@@ -61,5 +61,13 @@ export async function GET(req: NextRequest) {
     supermarket: row.supermarket ?? 'General',
   }));
 
+  console.info('[api/bootstrap][GET] loaded', {
+    userId: user.id,
+    items: items.length,
+    recipes: recipes.length,
+    stores: stores.length,
+    removedSuggestions: removedSuggestions.length,
+  });
+
   return NextResponse.json({ items, recipes, stores, removedSuggestions, userId: user.id });
 }
