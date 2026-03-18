@@ -6,8 +6,11 @@ const CACHE_SCHEMA_VERSION = 1;
 type CachedBootstrapSnapshot = {
   schemaVersion: number;
   cachedAt: number;
+  etag: string | null;
   payload: ApiBootstrap;
 };
+
+export type BootstrapCacheSnapshot = CachedBootstrapSnapshot;
 
 function getCacheKey(userId: string) {
   return `${CACHE_PREFIX}:${userId}`;
@@ -17,7 +20,7 @@ function isBrowser() {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
 }
 
-export function readBootstrapCache(userId: string): CachedBootstrapSnapshot | null {
+export function readBootstrapCache(userId: string): BootstrapCacheSnapshot | null {
   if (!isBrowser()) return null;
 
   try {
@@ -36,6 +39,7 @@ export function readBootstrapCache(userId: string): CachedBootstrapSnapshot | nu
     return {
       schemaVersion: CACHE_SCHEMA_VERSION,
       cachedAt: parsed.cachedAt,
+      etag: typeof parsed.etag === 'string' ? parsed.etag : null,
       payload: parsed.payload,
     };
   } catch {
@@ -43,12 +47,18 @@ export function readBootstrapCache(userId: string): CachedBootstrapSnapshot | nu
   }
 }
 
-export function writeBootstrapCache(userId: string, payload: ApiBootstrap, cachedAt = Date.now()) {
+export function writeBootstrapCache(
+  userId: string,
+  payload: ApiBootstrap,
+  cachedAt = Date.now(),
+  etag: string | null = null
+) {
   if (!isBrowser()) return;
 
   const snapshot: CachedBootstrapSnapshot = {
     schemaVersion: CACHE_SCHEMA_VERSION,
     cachedAt,
+    etag,
     payload,
   };
 
@@ -57,6 +67,13 @@ export function writeBootstrapCache(userId: string, payload: ApiBootstrap, cache
   } catch {
     // Ignore storage quota/private mode failures. Network data remains source of truth.
   }
+}
+
+export function touchBootstrapCache(userId: string, cachedAt = Date.now(), etag?: string | null) {
+  const snapshot = readBootstrapCache(userId);
+  if (!snapshot) return;
+
+  writeBootstrapCache(userId, snapshot.payload, cachedAt, etag ?? snapshot.etag);
 }
 
 export function clearBootstrapCache(userId: string) {

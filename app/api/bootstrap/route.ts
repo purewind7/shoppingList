@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthedSupabase, isResponse, jsonError } from '../_lib/supabase';
 
@@ -61,13 +62,32 @@ export async function GET(req: NextRequest) {
     supermarket: row.supermarket ?? 'General',
   }));
 
+  const payload = { items, recipes, stores, removedSuggestions, userId: user.id };
+  const etag = `"${createHash('sha1').update(JSON.stringify(payload)).digest('hex')}"`;
+  const requestEtag = req.headers.get('if-none-match');
+
   console.info('[api/bootstrap][GET] loaded', {
     userId: user.id,
     items: items.length,
     recipes: recipes.length,
     stores: stores.length,
     removedSuggestions: removedSuggestions.length,
+    etag,
   });
 
-  return NextResponse.json({ items, recipes, stores, removedSuggestions, userId: user.id });
+  if (requestEtag === etag) {
+    console.info('[api/bootstrap][GET] not modified', { userId: user.id, etag });
+    return new NextResponse(null, {
+      status: 304,
+      headers: {
+        ETag: etag,
+      },
+    });
+  }
+
+  return NextResponse.json(payload, {
+    headers: {
+      ETag: etag,
+    },
+  });
 }

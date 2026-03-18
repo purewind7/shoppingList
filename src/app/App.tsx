@@ -19,7 +19,12 @@ import {
   updateItem,
   updateRecipeApi,
 } from '@/lib/apiClient';
-import { clearBootstrapCache, readBootstrapCache, writeBootstrapCache } from '@/lib/bootstrapCache';
+import {
+  clearBootstrapCache,
+  readBootstrapCache,
+  touchBootstrapCache,
+  writeBootstrapCache,
+} from '@/lib/bootstrapCache';
 import { GroceryItem } from '@/app/components/GroceryItem';
 import { AddItem } from '@/app/components/AddItem';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
@@ -63,6 +68,7 @@ const TAB_ORDER: TabType[] = ['all', 'by-store', 'recipes'];
 const DEFAULT_STORES = ['Costco', "Trader Joe's", '99 Ranch', 'H mart'];
 const TAB_SWIPE_DISTANCE = 36;
 const TOGGLE_SYNC_DELAY_MS = 300;
+const BOOTSTRAP_REVALIDATE_TTL_MS = 60_000;
 
 const tabMotionVariants = {
   initial: (dir: number) => ({
@@ -106,6 +112,7 @@ export default function App() {
   const pendingToggleValueRef = useRef<Record<string, boolean>>({});
   const toggleInFlightRef = useRef<Set<string>>(new Set());
   const hasHydratedSnapshotRef = useRef(false);
+  const bootstrapRevalidateAtRef = useRef(0);
 
   useEffect(() => {
     let mounted = true;
@@ -159,20 +166,21 @@ export default function App() {
   );
 
   const persistBootstrapSnapshot = useCallback(
-    (overrides?: Partial<ApiBootstrap>, cachedAt = Date.now()) => {
+    (overrides?: Partial<ApiBootstrap>, cachedAt = Date.now(), etag: string | null = null) => {
       const userId = session?.user?.id;
       if (!userId || !hasHydratedSnapshotRef.current) return;
 
-      writeBootstrapCache(userId, getBootstrapSnapshot(overrides), cachedAt);
+      writeBootstrapCache(userId, getBootstrapSnapshot(overrides), cachedAt, etag);
     },
     [getBootstrapSnapshot, session?.user?.id]
   );
 
   const loadData = useCallback(
-    async (options?: { preferCache?: boolean }) => {
+    async (options?: { preferCache?: boolean; reason?: string }) => {
       const userId = session?.user?.id;
       if (!userId) {
         hasHydratedSnapshotRef.current = false;
+        bootstrapRevalidateAtRef.current = 0;
         setItems([]);
         setRecipes([]);
         setKnownStores([]);
@@ -181,38 +189,58 @@ export default function App() {
       }
 
       const preferCache = options?.preferCache ?? false;
-      let hasCache = false;
+      const reason = options?.reason ?? 'manual';
+      let cachedSnapshot = readBootstrapCache(userId);
 
       if (preferCache) {
-        const cachedSnapshot = readBootstrapCache(userId);
         if (cachedSnapshot) {
           console.info('[app][bootstrap] hydrating from cache', {
             userId,
             cachedAt: new Date(cachedSnapshot.cachedAt).toISOString(),
+            etag: cachedSnapshot.etag,
+            reason,
           });
           applyBootstrapPayload(cachedSnapshot.payload);
-          hasCache = true;
         } else {
-          console.info('[app][bootstrap] no cache available', { userId });
+          console.info('[app][bootstrap] no cache available', { userId, reason });
         }
       }
 
       setDataLoading(true);
       try {
-        const payload = await getBootstrap();
+        const response = await getBootstrap(cachedSnapshot?.etag ?? undefined);
         const fetchedAt = Date.now();
+        bootstrapRevalidateAtRef.current = fetchedAt;
+
+        if (response.status === 'not-modified') {
+          console.info('[app][bootstrap] not modified', {
+            userId,
+            fetchedAt: new Date(fetchedAt).toISOString(),
+            reason,
+            etag: response.etag ?? cachedSnapshot?.etag ?? null,
+          });
+          touchBootstrapCache(userId, fetchedAt, response.etag ?? cachedSnapshot?.etag ?? null);
+          return;
+        }
+
         console.info('[app][bootstrap] synced fresh data', {
           userId,
           fetchedAt: new Date(fetchedAt).toISOString(),
-          items: payload.items.length,
-          recipes: payload.recipes.length,
-          stores: payload.stores.length,
+          reason,
+          etag: response.etag,
+          items: response.payload.items.length,
+          recipes: response.payload.recipes.length,
+          stores: response.payload.stores.length,
         });
-        applyBootstrapPayload(payload);
-        writeBootstrapCache(userId, payload, fetchedAt);
+        applyBootstrapPayload(response.payload);
+        writeBootstrapCache(userId, response.payload, fetchedAt, response.etag);
       } catch (error) {
         console.error(error);
-        console.info('[app][bootstrap] sync failed', { userId, hasCache });
+        console.info('[app][bootstrap] sync failed', {
+          userId,
+          reason,
+          hasCache: Boolean(cachedSnapshot),
+        });
       } finally {
         setDataLoading(false);
       }
@@ -221,8 +249,33 @@ export default function App() {
   );
 
   useEffect(() => {
-    void loadData({ preferCache: true });
+    void loadData({ preferCache: true, reason: 'initial' });
   }, [loadData]);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    const shouldRevalidate = () =>
+      Date.now() - bootstrapRevalidateAtRef.current > BOOTSTRAP_REVALIDATE_TTL_MS;
+
+    const handleFocus = () => {
+      if (!shouldRevalidate()) return;
+      void loadData({ reason: 'window-focus' });
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible' || !shouldRevalidate()) return;
+      void loadData({ reason: 'visibility' });
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [loadData, session?.user?.id]);
 
   useEffect(() => {
     return () => {
@@ -536,6 +589,7 @@ export default function App() {
       clearBootstrapCache(userId);
     }
     hasHydratedSnapshotRef.current = false;
+    bootstrapRevalidateAtRef.current = 0;
     setSession(null);
     setItems([]);
     setRecipes([]);
@@ -653,7 +707,7 @@ export default function App() {
         <div className="absolute top-4 right-4 z-20">
           <div className="flex items-center gap-2 text-xs font-semibold text-gray-700 bg-white/70 backdrop-blur-md rounded-full px-2 py-2">
             <button
-              onClick={() => void loadData()}
+              onClick={() => void loadData({ reason: 'manual-refresh' })}
               className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
               aria-label="Refresh data"
               title="Refresh data"
