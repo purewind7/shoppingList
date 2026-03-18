@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabaseClient';
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
+  headers?: Record<string, string>;
 };
 
 async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -17,6 +18,7 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
+      ...options.headers,
     },
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   });
@@ -64,7 +66,49 @@ export type ApiBootstrap = {
   removedSuggestions: Array<{ name: string; supermarket: string }>;
 };
 
-export const getBootstrap = () => apiRequest<ApiBootstrap>('/api/bootstrap');
+export type BootstrapResponse =
+  | { status: 'fresh'; payload: ApiBootstrap; etag: string | null }
+  | { status: 'not-modified'; etag: string | null };
+
+export async function getBootstrap(etag?: string): Promise<BootstrapResponse> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) {
+    throw new Error('Missing auth session');
+  }
+
+  const response = await fetch('/api/bootstrap', {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      ...(etag ? { 'If-None-Match': etag } : {}),
+    },
+  });
+
+  const responseEtag = response.headers.get('ETag');
+  if (response.status === 304) {
+    return { status: 'not-modified', etag: responseEtag };
+  }
+
+  if (!response.ok) {
+    let message = `Request failed: ${response.status}`;
+    try {
+      const payload = (await response.json()) as { error?: string };
+      if (payload.error) message = payload.error;
+    } catch {
+      // Keep fallback status message.
+    }
+    throw new Error(message);
+  }
+
+  const payload = (await response.json()) as ApiBootstrap;
+  return {
+    status: 'fresh',
+    payload,
+    etag: responseEtag,
+  };
+}
 
 export const createItem = (payload: { name: string; supermarket: string }) =>
   apiRequest<ApiItem>('/api/items', { method: 'POST', body: payload });

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
 import {
+  type ApiBootstrap,
   clearCompletedItems,
   createItem,
   createRecipe,
@@ -18,6 +19,12 @@ import {
   updateItem,
   updateRecipeApi,
 } from '@/lib/apiClient';
+import {
+  clearBootstrapCache,
+  readBootstrapCache,
+  touchBootstrapCache,
+  writeBootstrapCache,
+} from '@/lib/bootstrapCache';
 import { GroceryItem } from '@/app/components/GroceryItem';
 import { AddItem } from '@/app/components/AddItem';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
@@ -61,6 +68,7 @@ const TAB_ORDER: TabType[] = ['all', 'by-store', 'recipes'];
 const DEFAULT_STORES = ['Costco', "Trader Joe's", '99 Ranch', 'H mart'];
 const TAB_SWIPE_DISTANCE = 36;
 const TOGGLE_SYNC_DELAY_MS = 300;
+const BOOTSTRAP_REVALIDATE_TTL_MS = 60_000;
 
 const tabMotionVariants = {
   initial: (dir: number) => ({
@@ -103,6 +111,8 @@ export default function App() {
   const toggleSyncTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const pendingToggleValueRef = useRef<Record<string, boolean>>({});
   const toggleInFlightRef = useRef<Set<string>>(new Set());
+  const hasHydratedSnapshotRef = useRef(false);
+  const bootstrapRevalidateAtRef = useRef(0);
 
   useEffect(() => {
     let mounted = true;
@@ -134,32 +144,138 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const loadData = useCallback(async () => {
-    if (!session?.user) {
-      setItems([]);
-      setRecipes([]);
-      setKnownStores([]);
-      setRemovedSuggestions([]);
-      return;
-    }
-
-    setDataLoading(true);
-    try {
-      const payload = await getBootstrap();
+  const applyBootstrapPayload = useCallback(
+    (payload: ApiBootstrap) => {
       setItems(payload.items);
       setRecipes(payload.recipes);
       setKnownStores(payload.stores);
       setRemovedSuggestions(payload.removedSuggestions ?? []);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setDataLoading(false);
-    }
-  }, [session?.user]);
+      hasHydratedSnapshotRef.current = true;
+    },
+    []
+  );
+
+  const getBootstrapSnapshot = useCallback(
+    (overrides?: Partial<ApiBootstrap>): ApiBootstrap => ({
+      items: overrides?.items ?? items,
+      recipes: overrides?.recipes ?? recipes,
+      stores: overrides?.stores ?? knownStores,
+      removedSuggestions: overrides?.removedSuggestions ?? removedSuggestions,
+    }),
+    [items, recipes, knownStores, removedSuggestions]
+  );
+
+  const persistBootstrapSnapshot = useCallback(
+    (overrides?: Partial<ApiBootstrap>, cachedAt = Date.now(), etag: string | null = null) => {
+      const userId = session?.user?.id;
+      if (!userId || !hasHydratedSnapshotRef.current) return;
+
+      writeBootstrapCache(userId, getBootstrapSnapshot(overrides), cachedAt, etag);
+    },
+    [getBootstrapSnapshot, session?.user?.id]
+  );
+
+  const loadData = useCallback(
+    async (options?: { preferCache?: boolean; reason?: string }) => {
+      const userId = session?.user?.id;
+      if (!userId) {
+        hasHydratedSnapshotRef.current = false;
+        bootstrapRevalidateAtRef.current = 0;
+        setItems([]);
+        setRecipes([]);
+        setKnownStores([]);
+        setRemovedSuggestions([]);
+        return;
+      }
+
+      const preferCache = options?.preferCache ?? false;
+      const reason = options?.reason ?? 'manual';
+      let cachedSnapshot = readBootstrapCache(userId);
+
+      if (preferCache) {
+        if (cachedSnapshot) {
+          console.info('[app][bootstrap] hydrating from cache', {
+            userId,
+            cachedAt: new Date(cachedSnapshot.cachedAt).toISOString(),
+            etag: cachedSnapshot.etag,
+            reason,
+          });
+          applyBootstrapPayload(cachedSnapshot.payload);
+        } else {
+          console.info('[app][bootstrap] no cache available', { userId, reason });
+        }
+      }
+
+      setDataLoading(true);
+      try {
+        const response = await getBootstrap(cachedSnapshot?.etag ?? undefined);
+        const fetchedAt = Date.now();
+        bootstrapRevalidateAtRef.current = fetchedAt;
+
+        if (response.status === 'not-modified') {
+          console.info('[app][bootstrap] not modified', {
+            userId,
+            fetchedAt: new Date(fetchedAt).toISOString(),
+            reason,
+            etag: response.etag ?? cachedSnapshot?.etag ?? null,
+          });
+          touchBootstrapCache(userId, fetchedAt, response.etag ?? cachedSnapshot?.etag ?? null);
+          return;
+        }
+
+        console.info('[app][bootstrap] synced fresh data', {
+          userId,
+          fetchedAt: new Date(fetchedAt).toISOString(),
+          reason,
+          etag: response.etag,
+          items: response.payload.items.length,
+          recipes: response.payload.recipes.length,
+          stores: response.payload.stores.length,
+        });
+        applyBootstrapPayload(response.payload);
+        writeBootstrapCache(userId, response.payload, fetchedAt, response.etag);
+      } catch (error) {
+        console.error(error);
+        console.info('[app][bootstrap] sync failed', {
+          userId,
+          reason,
+          hasCache: Boolean(cachedSnapshot),
+        });
+      } finally {
+        setDataLoading(false);
+      }
+    },
+    [applyBootstrapPayload, session?.user?.id]
+  );
 
   useEffect(() => {
-    loadData();
+    void loadData({ preferCache: true, reason: 'initial' });
   }, [loadData]);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    const shouldRevalidate = () =>
+      Date.now() - bootstrapRevalidateAtRef.current > BOOTSTRAP_REVALIDATE_TTL_MS;
+
+    const handleFocus = () => {
+      if (!shouldRevalidate()) return;
+      void loadData({ reason: 'window-focus' });
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible' || !shouldRevalidate()) return;
+      void loadData({ reason: 'visibility' });
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [loadData, session?.user?.id]);
 
   useEffect(() => {
     return () => {
@@ -265,7 +381,9 @@ export default function App() {
     if (!session?.user) return;
     try {
       const item = await createItem({ name, supermarket: supermarket || 'General' });
-      setItems((prev) => [item, ...prev]);
+      const nextItems = [item, ...items];
+      setItems(nextItems);
+      persistBootstrapSnapshot({ items: nextItems });
     } catch (error) {
       console.error(error);
     }
@@ -274,7 +392,9 @@ export default function App() {
   const handleEditItem = async (id: string, name: string, supermarket: string) => {
     try {
       const updated = await updateItem(id, { name, supermarket: supermarket || 'General' });
-      setItems((prev) => prev.map((item) => (item.id === id ? updated : item)));
+      const nextItems = items.map((item) => (item.id === id ? updated : item));
+      setItems(nextItems);
+      persistBootstrapSnapshot({ items: nextItems });
     } catch (error) {
       console.error(error);
     }
@@ -293,7 +413,9 @@ export default function App() {
     try {
       const data = await createStore(normalized);
       if (data?.name) {
-        setKnownStores((prev) => Array.from(new Set([...prev, data.name])));
+        const nextStores = Array.from(new Set([...knownStores, data.name]));
+        setKnownStores(nextStores);
+        persistBootstrapSnapshot({ stores: nextStores });
       }
     } catch (error) {
       console.error(error);
@@ -308,7 +430,9 @@ export default function App() {
 
     try {
       await deleteStoreApi(trimmed);
-      setKnownStores((prev) => prev.filter((store) => store.toLowerCase() !== trimmed.toLowerCase()));
+      const nextStores = knownStores.filter((store) => store.toLowerCase() !== trimmed.toLowerCase());
+      setKnownStores(nextStores);
+      persistBootstrapSnapshot({ stores: nextStores });
     } catch (error) {
       console.error(error);
     }
@@ -319,7 +443,9 @@ export default function App() {
 
     try {
       const recipe = await createRecipe({ name, notes, ingredients });
-      setRecipes((prev) => [recipe, ...prev]);
+      const nextRecipes = [recipe, ...recipes];
+      setRecipes(nextRecipes);
+      persistBootstrapSnapshot({ recipes: nextRecipes });
     } catch (error) {
       console.error(error);
     }
@@ -328,7 +454,9 @@ export default function App() {
   const handleDeleteRecipe = async (id: string) => {
     try {
       await deleteRecipeApi(id);
-      setRecipes((prev) => prev.filter((recipe) => recipe.id !== id));
+      const nextRecipes = recipes.filter((recipe) => recipe.id !== id);
+      setRecipes(nextRecipes);
+      persistBootstrapSnapshot({ recipes: nextRecipes });
     } catch (error) {
       console.error(error);
     }
@@ -339,7 +467,9 @@ export default function App() {
 
     try {
       const newItems = await importItems(ingredients);
-      setItems((prev) => [...newItems, ...prev]);
+      const nextItems = [...newItems, ...items];
+      setItems(nextItems);
+      persistBootstrapSnapshot({ items: nextItems });
     } catch (error) {
       console.error(error);
     }
@@ -349,13 +479,13 @@ export default function App() {
     const target = items.find((item) => item.id === id);
     if (!target) return;
     const nextCompleted = !target.completed;
+    const nextItems = items.map((item) => {
+      if (item.id !== id) return item;
+      return { ...item, completed: nextCompleted };
+    });
 
-    setItems((prev) =>
-      prev.map((item) => {
-        if (item.id !== id) return item;
-        return { ...item, completed: nextCompleted };
-      })
-    );
+    setItems(nextItems);
+    persistBootstrapSnapshot({ items: nextItems });
 
     pendingToggleValueRef.current[id] = nextCompleted;
 
@@ -376,15 +506,18 @@ export default function App() {
       delete pendingToggleValueRef.current[id];
 
       const result = await deleteItemApi(id);
-      setItems((prev) => prev.filter((item) => item.id !== id));
+      const nextItems = items.filter((item) => item.id !== id);
+      setItems(nextItems);
       const removed = result.removedSuggestion;
       if (removed?.name) {
-        setRemovedSuggestions((prev) => {
-          const next = new Map<string, RemovedItemSuggestion>();
-          prev.forEach((entry) => next.set(entry.name.trim().toLowerCase(), entry));
-          next.set(removed.name.trim().toLowerCase(), removed);
-          return Array.from(next.values());
-        });
+        const next = new Map<string, RemovedItemSuggestion>();
+        removedSuggestions.forEach((entry) => next.set(entry.name.trim().toLowerCase(), entry));
+        next.set(removed.name.trim().toLowerCase(), removed);
+        const nextSuggestions = Array.from(next.values());
+        setRemovedSuggestions(nextSuggestions);
+        persistBootstrapSnapshot({ items: nextItems, removedSuggestions: nextSuggestions });
+      } else {
+        persistBootstrapSnapshot({ items: nextItems });
       }
     } catch (error) {
       console.error(error);
@@ -405,15 +538,16 @@ export default function App() {
         });
 
       const result = await clearCompletedItems();
-      setItems((prev) => prev.filter((item) => !item.completed));
-      setRemovedSuggestions((prev) => {
-        const merged = new Map<string, RemovedItemSuggestion>();
-        prev.forEach((entry) => merged.set(entry.name.trim().toLowerCase(), entry));
-        (result.removedSuggestions ?? []).forEach((entry) => {
-          merged.set(entry.name.trim().toLowerCase(), entry);
-        });
-        return Array.from(merged.values());
+      const nextItems = items.filter((item) => !item.completed);
+      setItems(nextItems);
+      const merged = new Map<string, RemovedItemSuggestion>();
+      removedSuggestions.forEach((entry) => merged.set(entry.name.trim().toLowerCase(), entry));
+      (result.removedSuggestions ?? []).forEach((entry) => {
+        merged.set(entry.name.trim().toLowerCase(), entry);
       });
+      const nextSuggestions = Array.from(merged.values());
+      setRemovedSuggestions(nextSuggestions);
+      persistBootstrapSnapshot({ items: nextItems, removedSuggestions: nextSuggestions });
     } catch (error) {
       console.error(error);
     }
@@ -442,6 +576,7 @@ export default function App() {
   };
 
   const handleSignOut = async () => {
+    const userId = session?.user?.id;
     const { error: globalError } = await supabase.auth.signOut({ scope: 'global' });
     if (globalError && globalError.code !== 'session_not_found') {
       console.error(globalError);
@@ -450,6 +585,11 @@ export default function App() {
     if (localError) {
       console.error(localError);
     }
+    if (userId) {
+      clearBootstrapCache(userId);
+    }
+    hasHydratedSnapshotRef.current = false;
+    bootstrapRevalidateAtRef.current = 0;
     setSession(null);
     setItems([]);
     setRecipes([]);
@@ -460,7 +600,9 @@ export default function App() {
   const handleUpdateRecipe = async (id: string, name: string, ingredients: Ingredient[], notes: string) => {
     try {
       const updated = await updateRecipeApi(id, { name, notes, ingredients });
-      setRecipes((prev) => prev.map((recipe) => (recipe.id === id ? updated : recipe)));
+      const nextRecipes = recipes.map((recipe) => (recipe.id === id ? updated : recipe));
+      setRecipes(nextRecipes);
+      persistBootstrapSnapshot({ recipes: nextRecipes });
     } catch (error) {
       console.error(error);
     }
@@ -565,7 +707,7 @@ export default function App() {
         <div className="absolute top-4 right-4 z-20">
           <div className="flex items-center gap-2 text-xs font-semibold text-gray-700 bg-white/70 backdrop-blur-md rounded-full px-2 py-2">
             <button
-              onClick={loadData}
+              onClick={() => void loadData({ reason: 'manual-refresh' })}
               className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
               aria-label="Refresh data"
               title="Refresh data"
@@ -610,10 +752,6 @@ export default function App() {
       </div>
 
       <div className="max-w-2xl mx-auto px-6 -mt-4 relative z-10">
-        {dataLoading && (
-          <div className="mb-4 text-sm text-gray-500">Syncing from Supabase…</div>
-        )}
-
         {/* Main Action Area */}
         {activeTab === 'recipes' ? (
           <div className="mb-8">
