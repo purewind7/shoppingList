@@ -37,7 +37,7 @@ export const GroceryItem: React.FC<GroceryItemProps> = ({ item, onToggle, onEdit
       <div className="flex items-center gap-4 flex-1">
         <button
           onClick={() => onToggle(item.id)}
-          className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+          className={`w-6 h-6 min-w-6 min-h-6 flex-none shrink-0 rounded-full border-2 flex items-center justify-center transition-colors ${
             item.completed 
               ? 'bg-green-500 border-green-500 text-white' 
               : 'border-gray-300 hover:border-blue-500'
