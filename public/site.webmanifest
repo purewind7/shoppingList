@@ -3,8 +3,8 @@
   "short_name": "Shopping Notes",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F8FAFC",
-  "theme_color": "#F8FAFC",
+  "background_color": "#A8C198",
+  "theme_color": "#A8C198",
   "icons": [
     {
       "src": "/favicon.ico",
