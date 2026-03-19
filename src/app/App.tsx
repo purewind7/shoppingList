@@ -29,9 +29,11 @@ import { GroceryItem } from '@/app/components/GroceryItem';
 import { AddItem } from '@/app/components/AddItem';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { RecipeList } from '@/app/components/RecipeList';
+import { FooterStatsBar } from '@/app/components/FooterStatsBar';
 import { AddRecipeModal } from '@/app/components/AddRecipeModal';
 import { RecipeImportModal } from '@/app/components/RecipeImportModal';
 import { EditItemModal } from '@/app/components/EditItemModal';
+import { ScrollToTopButton } from '@/app/components/ScrollToTopButton';
 import { StoreManagerModal } from '@/app/components/StoreManagerModal';
 import { ITEM_COLORS } from '@/app/colors';
 
@@ -958,31 +960,12 @@ export default function App() {
         </div>
       </div>
 
-      {/* Footer / Stats Floating */}
-      {items.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 bg-gray-900 text-white rounded-2xl shadow-2xl flex items-center gap-6 z-40">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-blue-400" />
-            <span className="text-sm font-bold">{items.length} Total</span>
-          </div>
-          <div className="w-px h-4 bg-gray-700" />
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-400" />
-            <span className="text-sm font-bold">{completedCount} Completed</span>
-          </div>
-        </div>
-      )}
+      <FooterStatsBar totalCount={items.length} completedCount={completedCount} />
 
-      {showScrollTop && (
-        <button
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="fixed bottom-6 right-6 sm:hidden z-40 p-3 rounded-full bg-white/90 backdrop-blur-md text-gray-700 shadow-lg border border-white/60 hover:bg-white transition-colors"
-          aria-label="Scroll to top"
-          title="Scroll to top"
-        >
-          <span className="text-lg font-bold">↑</span>
-        </button>
-      )}
+      <ScrollToTopButton
+        isVisible={showScrollTop}
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      />
 
       {/* Modals */}
       <AddRecipeModal
