@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ShoppingBasket, LayoutGrid, Store, Search, BookOpen, Plus, Download, LogOut, RefreshCw, X } from 'lucide-react';
+import { ShoppingBasket, LayoutGrid, Store, Search, BookOpen, Plus, Download, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
@@ -29,10 +29,13 @@ import { GroceryItem } from '@/app/components/GroceryItem';
 import { AddItem } from '@/app/components/AddItem';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { RecipeList } from '@/app/components/RecipeList';
+import { ClearDoneButton } from '@/app/components/ClearDoneButton';
 import { FooterStatsBar } from '@/app/components/FooterStatsBar';
+import { RefreshButton } from '@/app/components/RefreshButton';
 import { AddRecipeModal } from '@/app/components/AddRecipeModal';
 import { RecipeImportModal } from '@/app/components/RecipeImportModal';
 import { EditItemModal } from '@/app/components/EditItemModal';
+import { LogoutButton } from '@/app/components/LogoutButton';
 import { ScrollToTopButton } from '@/app/components/ScrollToTopButton';
 import { StoreManagerModal } from '@/app/components/StoreManagerModal';
 import { ITEM_COLORS } from '@/app/colors';
@@ -611,6 +614,7 @@ export default function App() {
   };
 
   const completedCount = items.filter((item) => item.completed).length;
+  const userDisplayName = (session?.user.email?.split('@')[0] || 'My').trim() || 'My';
 
   const switchTab = (nextTab: TabType) => {
     if (nextTab === activeTab) return;
@@ -706,29 +710,8 @@ export default function App() {
     <div className="min-h-screen bg-[#F8FAFC] pb-24">
       {/* Header */}
       <div className="relative h-48 w-full overflow-hidden">
-        <div className="absolute top-4 right-4 z-20">
-          <div className="flex items-center gap-2 text-xs font-semibold text-gray-700 bg-white/70 backdrop-blur-md rounded-full px-2 py-2">
-            <button
-              onClick={() => void loadData({ reason: 'manual-refresh' })}
-              className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
-              aria-label="Refresh data"
-              title="Refresh data"
-            >
-              <RefreshCw className={`w-4 h-4 ${dataLoading ? 'animate-spin' : ''}`} />
-            </button>
-            <span>
-              Signed in as <span className="text-gray-900">{session.user.email ?? 'User'}</span>
-            </span>
-            <button
-              onClick={handleSignOut}
-              className="p-2 text-gray-500 hover:text-red-600 transition-colors"
-              aria-label="Sign out"
-              title="Sign out"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+        <RefreshButton isLoading={dataLoading} onClick={() => void loadData({ reason: 'manual-refresh' })} />
+        <LogoutButton onClick={handleSignOut} />
         <ImageWithFallback
           src="https://images.unsplash.com/photo-1610636996379-4d184e2ef20a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmcmVzaCUyMGdyb2NlcmllcyUyMG1hcmtldHxlbnwxfHx8fDE3Njk3Mjg5MzJ8MA&ixlib=rb-4.1.0&q=80&w=1080"
           alt="Groceries"
@@ -737,19 +720,12 @@ export default function App() {
         <div className="absolute inset-0 bg-gradient-to-t from-[#F8FAFC] via-black/20 to-transparent" />
         <div className="absolute bottom-6 left-6 right-6 flex items-end justify-between">
           <div>
-            <h1 className="text-3xl font-black text-white drop-shadow-md">My Groceries</h1>
+            <h1 className="text-3xl font-black text-white drop-shadow-md">{userDisplayName}&apos;s Groceries</h1>
             <p className="text-white/90 font-medium">
               {items.length} items total • {completedCount} done
             </p>
           </div>
-          {completedCount > 0 && (
-            <button
-              onClick={clearCompleted}
-              className="px-4 py-2 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-full text-sm font-bold hover:bg-white/30 transition-all"
-            >
-              Clear Done
-            </button>
-          )}
+          <ClearDoneButton isVisible={completedCount > 0} onClick={clearCompleted} />
         </div>
       </div>
 
