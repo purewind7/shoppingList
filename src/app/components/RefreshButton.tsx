@@ -10,7 +10,8 @@ export const RefreshButton: React.FC<RefreshButtonProps> = ({ isLoading, onClick
   return (
     <button
       onClick={onClick}
-      className="absolute top-6 left-6 z-20 p-3 rounded-full bg-white/70 backdrop-blur-md text-gray-500 hover:text-blue-600 transition-colors"
+      className="absolute left-6 z-20 p-3 rounded-full bg-white/70 backdrop-blur-md text-gray-500 hover:text-blue-600 transition-colors"
+      style={{ top: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}
       aria-label="Refresh data"
       title="Refresh data"
     >
