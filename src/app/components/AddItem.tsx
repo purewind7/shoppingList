@@ -7,6 +7,7 @@ interface AddItemProps {
   supermarkets: string[];
   onManageStores?: () => void;
   itemNameSuggestions?: Array<{ name: string; supermarket: string }>;
+  buttonWrapperClassName?: string;
 }
 
 export const AddItem: React.FC<AddItemProps> = ({
@@ -14,6 +15,7 @@ export const AddItem: React.FC<AddItemProps> = ({
   supermarkets,
   onManageStores,
   itemNameSuggestions,
+  buttonWrapperClassName,
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const formContainerRef = useRef<HTMLDivElement>(null);
@@ -36,7 +38,7 @@ export const AddItem: React.FC<AddItemProps> = ({
   };
 
   return (
-    <div>
+    <div className={!isAdding ? buttonWrapperClassName : undefined}>
       {!isAdding ? (
         <button
           onClick={() => setIsAdding(true)}
