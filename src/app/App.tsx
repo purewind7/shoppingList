@@ -737,7 +737,10 @@ export default function App() {
       </div>
 
       <div className="max-w-2xl mx-auto px-6 -mt-4 relative z-10">
-        <div className="sticky top-4 z-30 mb-6 space-y-4">
+        <div
+          className="sticky z-30 mb-6 space-y-4"
+          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}
+        >
           {/* Main Action Area */}
           {activeTab === 'recipes' ? (
             <div>
