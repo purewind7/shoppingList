@@ -36,7 +36,7 @@ export const AddItem: React.FC<AddItemProps> = ({
   };
 
   return (
-    <div className="mb-8">
+    <div>
       {!isAdding ? (
         <button
           onClick={() => setIsAdding(true)}

@@ -730,84 +730,86 @@ export default function App() {
       </div>
 
       <div className="max-w-2xl mx-auto px-6 -mt-4 relative z-10">
-        {/* Main Action Area */}
-        {activeTab === 'recipes' ? (
-          <div className="mb-8">
-            <button
-              onClick={() => setIsRecipeModalOpen(true)}
-              className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-orange-200 transition-all active:scale-[0.98]"
-            >
-              <Plus className="w-5 h-5" />
-              Add New Recipe
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <AddItem
-              onAdd={addItem}
-              supermarkets={uniqueSupermarkets}
-              onManageStores={() => setIsStoreModalOpen(true)}
-              itemNameSuggestions={removedSuggestions}
-            />
-          </div>
-        )}
-
-        {/* Search & Tabs */}
-        <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 mb-6 sticky top-4 z-20">
-          <div className="flex gap-1 mb-2">
-            <button
-              onClick={() => switchTab('all')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                activeTab === 'all' ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-50'
-              }`}
-            >
-              <LayoutGrid className="w-4 h-4" />
-              All Items
-            </button>
-            <button
-              onClick={() => switchTab('by-store')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                activeTab === 'by-store'
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-500 hover:bg-gray-50'
-              }`}
-            >
-              <Store className="w-4 h-4" />
-              By Store
-            </button>
-            <button
-              onClick={() => switchTab('recipes')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                activeTab === 'recipes'
-                  ? 'bg-orange-50 text-orange-600'
-                  : 'text-gray-500 hover:bg-gray-50'
-              }`}
-            >
-              <BookOpen className="w-4 h-4" />
-              Recipes
-            </button>
-          </div>
-
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search items, stores or recipes..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-10 py-2 bg-gray-50 rounded-lg text-base sm:text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-            {searchQuery && (
+        <div className="sticky top-4 z-30 mb-6 space-y-4">
+          {/* Main Action Area */}
+          {activeTab === 'recipes' ? (
+            <div>
               <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
-                aria-label="Clear search"
-                title="Clear search"
+                onClick={() => setIsRecipeModalOpen(true)}
+                className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-orange-200 transition-all active:scale-[0.98]"
               >
-                <X className="w-4 h-4" />
+                <Plus className="w-5 h-5" />
+                Add New Recipe
               </button>
-            )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <AddItem
+                onAdd={addItem}
+                supermarkets={uniqueSupermarkets}
+                onManageStores={() => setIsStoreModalOpen(true)}
+                itemNameSuggestions={removedSuggestions}
+              />
+            </div>
+          )}
+
+          {/* Search & Tabs */}
+          <div className="bg-white/95 p-2 rounded-2xl shadow-sm border border-gray-100 backdrop-blur-sm">
+            <div className="flex gap-1 mb-2">
+              <button
+                onClick={() => switchTab('all')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                  activeTab === 'all' ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                <LayoutGrid className="w-4 h-4" />
+                All Items
+              </button>
+              <button
+                onClick={() => switchTab('by-store')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                  activeTab === 'by-store'
+                    ? 'bg-blue-50 text-blue-600'
+                    : 'text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                <Store className="w-4 h-4" />
+                By Store
+              </button>
+              <button
+                onClick={() => switchTab('recipes')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                  activeTab === 'recipes'
+                    ? 'bg-orange-50 text-orange-600'
+                    : 'text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                <BookOpen className="w-4 h-4" />
+                Recipes
+              </button>
+            </div>
+
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search items, stores or recipes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-10 py-2 bg-gray-50 rounded-lg text-base sm:text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                  aria-label="Clear search"
+                  title="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
