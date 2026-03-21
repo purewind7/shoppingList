@@ -11,7 +11,8 @@ export const RefreshButton: React.FC<RefreshButtonProps> = ({ isLoading, onClick
   return (
     <GlassButton
       onClick={onClick}
-      className="absolute top-6 left-6 z-20 size-11"
+      className="absolute left-6 z-20 size-11"
+      style={{ top: 'calc(env(safe-area-inset-top, 0px) + 2.5rem)' }}
       shape="icon"
       tone="hero"
       aria-label="Refresh data"

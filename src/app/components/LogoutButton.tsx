@@ -10,7 +10,8 @@ export const LogoutButton: React.FC<LogoutButtonProps> = ({ onClick }) => {
   return (
     <GlassButton
       onClick={onClick}
-      className="absolute top-6 right-6 z-20 size-11"
+      className="absolute right-6 z-20 size-11"
+      style={{ top: 'calc(env(safe-area-inset-top, 0px) + 2.5rem)' }}
       shape="icon"
       tone="hero"
       aria-label="Sign out"

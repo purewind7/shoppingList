@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { Metadata, Viewport } from 'next';
 import '../src/styles/index.css';
 
 const startupImages = [
@@ -224,9 +225,10 @@ const startupImages = [
   },
 ];
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'Shopping Notes',
   description: 'Grocery list and recipe organizer',
+  themeColor: '#A7C098',
   icons: {
     icon: '/favicon.ico',
     apple: '/apple-touch-icon.png',
@@ -235,14 +237,24 @@ export const metadata = {
   appleWebApp: {
     title: 'Shopping Notes',
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
   },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="theme-color" content="#A7C098" />
         {startupImages.map((image) => (
           <link
             key={`${image.href}-${image.media}`}

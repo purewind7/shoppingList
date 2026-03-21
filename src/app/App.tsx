@@ -710,7 +710,14 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-24">
       {/* Header */}
-      <div className="relative h-48 w-full overflow-hidden">
+      <div
+        className="relative w-full overflow-hidden"
+        style={{
+          height: 'calc(12rem + env(safe-area-inset-top, 0px))',
+          marginTop: 'calc(env(safe-area-inset-top, 0px) * -1)',
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+        }}
+      >
         <RefreshButton isLoading={dataLoading} onClick={() => void loadData({ reason: 'manual-refresh' })} />
         <LogoutButton onClick={handleSignOut} />
         <ImageWithFallback
