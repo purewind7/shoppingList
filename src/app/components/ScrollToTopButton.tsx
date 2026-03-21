@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronUp } from 'lucide-react';
+import { GlassButton } from '@/app/components/ui/glass';
 
 interface ScrollToTopButtonProps {
   isVisible: boolean;
@@ -10,13 +11,15 @@ export const ScrollToTopButton: React.FC<ScrollToTopButtonProps> = ({ isVisible,
   if (!isVisible) return null;
 
   return (
-    <button
+    <GlassButton
       onClick={onClick}
-      className="fixed bottom-6 right-6 sm:hidden z-40 p-3 rounded-full bg-white/90 backdrop-blur-md text-gray-700 shadow-lg border border-white/60 hover:bg-white transition-colors"
+      className="fixed right-6 z-40 size-11 sm:hidden [--glass-fill-start:rgb(255_255_255_/_0.42)] [--glass-fill-end:rgb(255_255_255_/_0.14)] [--glass-fill-fallback:rgb(255_255_255_/_0.72)] [--glass-border:rgb(255_255_255_/_0.34)] [--glass-highlight:rgb(255_255_255_/_0.56)] [--glass-sheen:rgb(255_255_255_/_0.34)] [--glass-shadow:rgb(148_163_184_/_0.12)] [--glass-shadow-strong:rgb(148_163_184_/_0.16)] bottom-6"
+      shape="icon"
+      tone="light"
       aria-label="Scroll to top"
       title="Scroll to top"
     >
       <ChevronUp className="w-5 h-5" />
-    </button>
+    </GlassButton>
   );
 };
