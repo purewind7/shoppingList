@@ -1,5 +1,5 @@
-import type { Metadata, ReactNode } from 'react';
-import type { Viewport } from 'next';
+import type { ReactNode } from 'react';
+import type { Metadata, Viewport } from 'next';
 import '../src/styles/index.css';
 
 const startupImages = [
