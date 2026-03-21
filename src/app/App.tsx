@@ -740,7 +740,10 @@ export default function App() {
       <div className="max-w-2xl mx-auto px-6 -mt-4 relative z-10">
         {/* Main Action Area */}
         {activeTab === 'recipes' ? (
-          <div className="sticky top-4 z-30 mb-6">
+          <div
+            className="sticky z-30 mb-6"
+            style={{ top: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}
+          >
             <button
               onClick={() => setIsRecipeModalOpen(true)}
               className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-orange-200 transition-all active:scale-[0.98]"
@@ -755,7 +758,8 @@ export default function App() {
             supermarkets={uniqueSupermarkets}
             onManageStores={() => setIsStoreModalOpen(true)}
             itemNameSuggestions={removedSuggestions}
-            buttonWrapperClassName="sticky top-4 z-30 mb-6"
+            buttonWrapperClassName="sticky z-30 mb-6"
+            buttonWrapperStyle={{ top: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}
           />
         )}
 
@@ -763,7 +767,8 @@ export default function App() {
         <GlassSurface
           shape="panel"
           tone="light"
-          className="sticky top-24 z-20 mb-6 p-2 [--glass-fill-start:rgb(255_255_255_/_0.66)] [--glass-fill-end:rgb(255_255_255_/_0.34)] [--glass-fill-fallback:rgb(255_255_255_/_0.86)] [--glass-border:rgb(255_255_255_/_0.56)] [--glass-highlight:rgb(255_255_255_/_0.76)] [--glass-sheen:rgb(255_255_255_/_0.48)] [--glass-shadow:rgb(148_163_184_/_0.12)] [--glass-shadow-strong:rgb(148_163_184_/_0.18)]"
+          className="sticky z-20 mb-6 p-2 [--glass-fill-start:rgb(255_255_255_/_0.66)] [--glass-fill-end:rgb(255_255_255_/_0.34)] [--glass-fill-fallback:rgb(255_255_255_/_0.86)] [--glass-border:rgb(255_255_255_/_0.56)] [--glass-highlight:rgb(255_255_255_/_0.76)] [--glass-sheen:rgb(255_255_255_/_0.48)] [--glass-shadow:rgb(148_163_184_/_0.12)] [--glass-shadow-strong:rgb(148_163_184_/_0.18)]"
+          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 6rem)' }}
         >
           <div className="flex gap-1 mb-2">
             <GlassTabButton
