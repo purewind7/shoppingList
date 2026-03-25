@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ShoppingBasket, LayoutGrid, Store, Search, BookOpen, Plus, Download, X } from 'lucide-react';
+import { ShoppingBasket, LayoutGrid, Store, Search, BookOpen, Download, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
@@ -38,6 +38,7 @@ import { EditItemModal } from '@/app/components/EditItemModal';
 import { LogoutButton } from '@/app/components/LogoutButton';
 import { ScrollToTopButton } from '@/app/components/ScrollToTopButton';
 import { StoreManagerModal } from '@/app/components/StoreManagerModal';
+import { AddRecipeButton } from '@/app/components/AddRecipeButton';
 import { GlassSurface, GlassTabButton } from '@/app/components/ui/glass';
 import { ITEM_COLORS } from '@/app/colors';
 
@@ -740,18 +741,7 @@ export default function App() {
       <div className="max-w-2xl mx-auto px-6 -mt-4 relative z-10">
         {/* Main Action Area */}
         {activeTab === 'recipes' ? (
-          <div
-            className="sticky z-30 mb-6"
-            style={{ top: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}
-          >
-            <button
-              onClick={() => setIsRecipeModalOpen(true)}
-              className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-orange-200 transition-all active:scale-[0.98]"
-            >
-              <Plus className="w-5 h-5" />
-              Add New Recipe
-            </button>
-          </div>
+          <AddRecipeButton onClick={() => setIsRecipeModalOpen(true)} />
         ) : (
           <AddItem
             onAdd={addItem}
