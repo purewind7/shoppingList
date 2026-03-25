@@ -347,6 +347,21 @@ export default function App() {
       item.supermarket.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const filteredRecipes = recipes.filter((recipe) => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    if (!normalizedQuery) return true;
+
+    return (
+      recipe.name.toLowerCase().includes(normalizedQuery) ||
+      recipe.notes?.toLowerCase().includes(normalizedQuery) ||
+      recipe.ingredients.some(
+        (ingredient) =>
+          ingredient.name.toLowerCase().includes(normalizedQuery) ||
+          ingredient.supermarket.toLowerCase().includes(normalizedQuery)
+      )
+    );
+  });
+
   const itemsByStore = useMemo(() => {
     const grouped: Record<string, Item[]> = {};
     filteredItems.forEach((item) => {
@@ -924,12 +939,14 @@ export default function App() {
                 transition={{ duration: 0.22, ease: 'easeOut' }}
               >
                 <RecipeList
-                  recipes={recipes}
+                  recipes={filteredRecipes}
                   onDelete={handleDeleteRecipe}
                   onEdit={(id) => {
                     const target = recipes.find((entry) => entry.id === id);
                     if (target) setEditingRecipe(target);
                   }}
+                  emptyTitle={searchQuery ? 'No recipes found' : undefined}
+                  emptySubtitle={searchQuery ? 'Try a different recipe, ingredient, or note keyword' : undefined}
                 />
               </motion.div>
             )}

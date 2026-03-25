@@ -20,9 +20,17 @@ interface RecipeListProps {
   recipes: Recipe[];
   onDelete: (id: string) => void;
   onEdit: (id: string) => void;
+  emptyTitle?: string;
+  emptySubtitle?: string;
 }
 
-export const RecipeList: React.FC<RecipeListProps> = ({ recipes, onDelete, onEdit }) => {
+export const RecipeList: React.FC<RecipeListProps> = ({
+  recipes,
+  onDelete,
+  onEdit,
+  emptyTitle = 'No recipes created yet',
+  emptySubtitle = 'Click "Add New Recipe" to get started',
+}) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const toggleExpand = (id: string) => {
@@ -35,8 +43,8 @@ export const RecipeList: React.FC<RecipeListProps> = ({ recipes, onDelete, onEdi
         <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <ShoppingBag className="w-8 h-8 text-orange-500" />
         </div>
-        <p className="text-gray-500 font-medium">No recipes created yet</p>
-        <p className="text-gray-400 text-sm mt-1">Click "Add New Recipe" to get started</p>
+        <p className="text-gray-500 font-medium">{emptyTitle}</p>
+        <p className="text-gray-400 text-sm mt-1">{emptySubtitle}</p>
       </div>
     );
   }
