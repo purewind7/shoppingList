@@ -8,7 +8,7 @@ interface AddRecipeButtonProps {
 export const AddRecipeButton: React.FC<AddRecipeButtonProps> = ({ onClick }) => {
   return (
     <div
-      className="sticky z-30 mb-6"
+      className="sticky z-30 mb-3"
       style={{ top: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}
     >
       <button

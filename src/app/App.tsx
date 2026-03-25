@@ -748,7 +748,7 @@ export default function App() {
             supermarkets={uniqueSupermarkets}
             onManageStores={() => setIsStoreModalOpen(true)}
             itemNameSuggestions={removedSuggestions}
-            buttonWrapperClassName="sticky z-30 mb-6"
+            buttonWrapperClassName="sticky z-30 mb-3"
             buttonWrapperStyle={{ top: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}
           />
         )}
