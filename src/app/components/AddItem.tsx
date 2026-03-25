@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { ItemForm } from './ItemForm';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/app/components/ui/dialog';
 
 interface AddItemProps {
   onAdd: (name: string, supermarket: string) => void;
@@ -20,19 +21,6 @@ export const AddItem: React.FC<AddItemProps> = ({
   buttonWrapperStyle,
 }) => {
   const [isAdding, setIsAdding] = useState(false);
-  const formContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!isAdding) return;
-    if (!window.matchMedia('(max-width: 768px)').matches) return;
-
-    const timer = window.setTimeout(() => {
-      const top = (formContainerRef.current?.getBoundingClientRect().top ?? 0) + window.scrollY - 12;
-      window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
-    }, 60);
-
-    return () => window.clearTimeout(timer);
-  }, [isAdding]);
 
   const handleAdd = (name: string, supermarket: string) => {
     onAdd(name, supermarket);
@@ -52,17 +40,29 @@ export const AddItem: React.FC<AddItemProps> = ({
           <Plus className="w-5 h-5" />
           Add New Item
         </button>
-      ) : (
-        <div ref={formContainerRef}>
-          <ItemForm
-            supermarkets={supermarkets}
-            onSubmit={handleAdd}
-            onCancel={() => setIsAdding(false)}
-            onManageStores={onManageStores}
-            itemNameSuggestions={itemNameSuggestions}
-          />
-        </div>
-      )}
+      ) : null}
+
+      <Dialog open={isAdding} onOpenChange={setIsAdding}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">Add New Item</DialogTitle>
+            <DialogDescription className="sr-only">
+              Add an item name and choose the stores where you want to buy it.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            <ItemForm
+              supermarkets={supermarkets}
+              onSubmit={handleAdd}
+              onCancel={() => setIsAdding(false)}
+              onManageStores={onManageStores}
+              itemNameSuggestions={itemNameSuggestions}
+              variant="plain"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

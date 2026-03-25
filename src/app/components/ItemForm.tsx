@@ -11,6 +11,7 @@ interface ItemFormProps {
   initialName?: string;
   initialSupermarkets?: string[];
   itemNameSuggestions?: Array<{ name: string; supermarket: string }>;
+  variant?: 'card' | 'plain';
 }
 
 export const ItemForm: React.FC<ItemFormProps> = ({
@@ -23,10 +24,12 @@ export const ItemForm: React.FC<ItemFormProps> = ({
   initialName,
   initialSupermarkets,
   itemNameSuggestions = [],
+  variant = 'card',
 }) => {
   const resolvedInitialStores = useMemo(() => initialSupermarkets ?? [], [initialSupermarkets]);
   const [name, setName] = useState(initialName ?? '');
   const [selectedSupermarkets, setSelectedSupermarkets] = useState<string[]>(resolvedInitialStores);
+  const isPlain = variant === 'plain';
 
   const suggestionLookup = useMemo(() => {
     const map = new Map<string, string>();
@@ -83,7 +86,11 @@ export const ItemForm: React.FC<ItemFormProps> = ({
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xl animate-in fade-in slide-in-from-top-4 duration-300"
+      className={
+        isPlain
+          ? 'animate-in fade-in slide-in-from-top-4 duration-300'
+          : 'bg-white p-6 rounded-2xl border border-gray-100 shadow-xl animate-in fade-in slide-in-from-top-4 duration-300'
+      }
     >
       <div className="space-y-4">
         <div>
@@ -95,7 +102,9 @@ export const ItemForm: React.FC<ItemFormProps> = ({
             list={suggestionNames.length > 0 ? 'item-name-suggestions' : undefined}
             value={name}
             onChange={(e) => handleNameChange(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+            className={`w-full rounded-xl border border-gray-200 px-4 py-3 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 ${
+              isPlain ? 'font-medium text-lg' : ''
+            }`}
           />
           {suggestionNames.length > 0 && (
             <datalist id="item-name-suggestions">
@@ -147,17 +156,21 @@ export const ItemForm: React.FC<ItemFormProps> = ({
           )}
         </div>
 
-        <div className="flex gap-3 pt-2">
+        <div className={isPlain ? 'flex flex-col gap-3 pt-2' : 'flex gap-3 pt-2'}>
           <button
             type="submit"
-            className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-colors"
+            className={`bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-colors ${
+              isPlain ? 'w-full py-4' : 'flex-1 py-3'
+            }`}
           >
             {submitLabel}
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="px-6 py-3 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl font-semibold transition-colors"
+            className={`bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl font-semibold transition-colors ${
+              isPlain ? 'w-full py-4' : 'px-6 py-3'
+            }`}
           >
             Cancel
           </button>
