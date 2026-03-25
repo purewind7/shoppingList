@@ -16,6 +16,7 @@ interface AddRecipeModalProps {
   onSave: (name: string, ingredients: Ingredient[], notes: string) => void;
   supermarkets: string[];
   onManageStores?: () => void;
+  itemNameSuggestions?: Array<{ name: string; supermarket: string }>;
   initialName?: string;
   initialIngredients?: Ingredient[];
   initialNotes?: string;
@@ -29,6 +30,7 @@ export const AddRecipeModal: React.FC<AddRecipeModalProps> = ({
   onSave,
   supermarkets,
   onManageStores,
+  itemNameSuggestions,
   initialName = '',
   initialIngredients = [],
   initialNotes = '',
@@ -200,6 +202,7 @@ export const AddRecipeModal: React.FC<AddRecipeModalProps> = ({
                   onManageStores={onManageStores}
                   initialName={editingIngredient?.name ?? ''}
                   initialSupermarkets={editingInitialSupermarkets}
+                  itemNameSuggestions={itemNameSuggestions}
                 />
               </div>
             ) : (

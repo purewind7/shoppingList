@@ -962,6 +962,7 @@ export default function App() {
         }}
         supermarkets={uniqueSupermarkets}
         onManageStores={() => setIsStoreModalOpen(true)}
+        itemNameSuggestions={removedSuggestions}
         initialName={editingRecipe?.name ?? ''}
         initialIngredients={editingRecipe?.ingredients ?? []}
         initialNotes={editingRecipe?.notes ?? ''}
