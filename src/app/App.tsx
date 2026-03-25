@@ -808,7 +808,7 @@ export default function App() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search items, stores or recipes..."
+              placeholder={activeTab === 'recipes' ? "Search recipes..." : "Search items or stores..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="glass-search-field w-full rounded-lg py-2 pl-10 pr-10 text-base sm:text-sm focus:outline-none"
