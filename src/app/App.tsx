@@ -714,7 +714,7 @@ export default function App() {
       <div
         className="relative w-full overflow-hidden"
         style={{
-          height: 'calc(12rem + env(safe-area-inset-top, 0px))',
+          height: 'calc(16rem + env(safe-area-inset-top, 0px))',
           marginTop: 'calc(env(safe-area-inset-top, 0px) * -1)',
           paddingTop: 'env(safe-area-inset-top, 0px)',
         }}
@@ -727,13 +727,12 @@ export default function App() {
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#F8FAFC] via-black/20 to-transparent" />
-        <div className="absolute bottom-6 left-6 right-6 flex items-end justify-between">
+        <div className="absolute bottom-32 left-6 right-6 flex items-end justify-between">
           <div>
             <h1 className="text-3xl font-black text-white drop-shadow-md">{userDisplayName}&apos;s Groceries</h1>
-            <p className="text-white/90 font-medium">
-              {items.length} items total • {completedCount} done
-            </p>
           </div>
+        </div>
+        <div className="absolute bottom-6 right-6 flex">
           <ClearDoneButton isVisible={completedCount > 0} onClick={clearCompleted} />
         </div>
       </div>
