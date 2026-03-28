@@ -70,36 +70,44 @@ export interface GlassButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     SharedGlassProps {}
 
-export function GlassButton({
-  children,
-  className,
-  shape,
-  tone,
-  depth,
-  interactive = true,
-  type = 'button',
-  ...props
-}: GlassButtonProps) {
-  return (
-    <button
-      type={type}
-      data-slot="glass-button"
-      data-glass-depth={depth ?? 'medium'}
-      data-glass-shape={shape}
-      data-glass-tone={tone ?? 'light'}
-      className={cn(
-        glassSurfaceVariants({ shape, tone, depth, interactive }),
-        'inline-flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:cursor-not-allowed disabled:opacity-60',
-        className
-      )}
-      {...props}
-    >
-      <span className="relative z-[1] inline-flex items-center justify-center gap-2">
-        {children}
-      </span>
-    </button>
-  );
-}
+export const GlassButton = React.forwardRef<HTMLButtonElement, GlassButtonProps>(
+  (
+    {
+      children,
+      className,
+      shape,
+      tone,
+      depth,
+      interactive = true,
+      type = 'button',
+      ...props
+    },
+    ref
+  ) => {
+    return (
+      <button
+        ref={ref}
+        type={type}
+        data-slot="glass-button"
+        data-glass-depth={depth ?? 'medium'}
+        data-glass-shape={shape}
+        data-glass-tone={tone ?? 'light'}
+        className={cn(
+          glassSurfaceVariants({ shape, tone, depth, interactive }),
+          'inline-flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:cursor-not-allowed disabled:opacity-60',
+          className
+        )}
+        {...props}
+      >
+        <span className="relative z-[1] inline-flex items-center justify-center gap-2">
+          {children}
+        </span>
+      </button>
+    );
+  }
+);
+
+GlassButton.displayName = 'GlassButton';
 
 export interface GlassActionButtonProps
   extends Omit<GlassButtonProps, 'shape' | 'tone'> {

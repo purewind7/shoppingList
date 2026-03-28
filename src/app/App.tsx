@@ -35,7 +35,7 @@ import { RefreshButton } from '@/app/components/RefreshButton';
 import { AddRecipeModal } from '@/app/components/AddRecipeModal';
 import { RecipeImportModal } from '@/app/components/RecipeImportModal';
 import { EditItemModal } from '@/app/components/EditItemModal';
-import { LogoutButton } from '@/app/components/LogoutButton';
+import { MainMenu } from '@/app/components/MainMenu';
 import { ScrollToTopButton } from '@/app/components/ScrollToTopButton';
 import { StoreManagerModal } from '@/app/components/StoreManagerModal';
 import { AddRecipeButton } from '@/app/components/AddRecipeButton';
@@ -735,7 +735,11 @@ export default function App() {
         }}
       >
         <RefreshButton isLoading={dataLoading} onClick={() => void loadData({ reason: 'manual-refresh' })} />
-        <LogoutButton onClick={handleSignOut} />
+        <MainMenu
+          onManageStores={() => setIsStoreModalOpen(true)}
+          onLogout={handleSignOut}
+          userEmail={session.user.email}
+        />
         <ImageWithFallback
           src="https://images.unsplash.com/photo-1610636996379-4d184e2ef20a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmcmVzaCUyMGdyb2NlcmllcyUyMG1hcmtldHxlbnwxfHx8fDE3Njk3Mjg5MzJ8MA&ixlib=rb-4.1.0&q=80&w=1080"
           alt="Groceries"

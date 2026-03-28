@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ClearDoneButton } from './ClearDoneButton';
 import { FooterStatsBar } from './FooterStatsBar';
-import { LogoutButton } from './LogoutButton';
+import { MainMenu } from './MainMenu';
 import { RefreshButton } from './RefreshButton';
 import { ScrollToTopButton } from './ScrollToTopButton';
 
@@ -17,15 +18,38 @@ describe('Floating glass controls', () => {
     expect(icon as SVGElement).toHaveClass('animate-spin');
   });
 
-  it('renders LogoutButton with shared hero glass icon styling', () => {
-    render(<LogoutButton onClick={jest.fn()} />);
+  it('renders MainMenu with a hero glass trigger and menu actions', async () => {
+    const user = userEvent.setup();
+    const onManageStores = jest.fn();
+    const onLogout = jest.fn();
 
-    expect(screen.getByRole('button', { name: 'Sign out' })).toHaveClass(
+    render(
+      <MainMenu
+        onManageStores={onManageStores}
+        onLogout={onLogout}
+        userEmail="groceries@example.com"
+      />
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Open main menu' });
+
+    expect(trigger).toHaveClass(
       'glass-surface',
       'glass-shape-icon',
       'glass-tone-hero',
       'glass-interactive'
     );
+
+    await user.click(trigger);
+
+    expect(screen.getByText('groceries@example.com')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('menuitem', { name: 'Manage stores' }));
+    expect(onManageStores).toHaveBeenCalledTimes(1);
+
+    await user.click(trigger);
+    await user.click(screen.getByRole('menuitem', { name: 'Log out' }));
+    expect(onLogout).toHaveBeenCalledTimes(1);
   });
 
   it('hides ClearDoneButton when not visible and uses the pill glass variant when shown', () => {
