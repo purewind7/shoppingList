@@ -757,79 +757,81 @@ export default function App() {
       </div>
 
       <div className="max-w-2xl mx-auto px-6 -mt-4 relative z-10">
-        {/* Main Action Area */}
-        {activeTab === 'recipes' ? (
-          <AddRecipeButton onClick={() => setIsRecipeModalOpen(true)} />
-        ) : (
-          <AddItem
-            onAdd={addItem}
-            supermarkets={uniqueSupermarkets}
-            onManageStores={() => setIsStoreModalOpen(true)}
-            itemNameSuggestions={removedSuggestions}
-            buttonWrapperClassName="sticky z-30 mb-3"
-            buttonWrapperStyle={{ top: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}
-          />
-        )}
-
-        {/* Search & Tabs */}
-        <GlassSurface
-          shape="panel"
-          tone="light"
-          className="sticky z-20 mb-6 p-2 [--glass-fill-start:rgb(255_255_255_/_0.66)] [--glass-fill-end:rgb(255_255_255_/_0.34)] [--glass-fill-fallback:rgb(255_255_255_/_0.86)] [--glass-border:rgb(255_255_255_/_0.56)] [--glass-highlight:rgb(255_255_255_/_0.76)] [--glass-sheen:rgb(255_255_255_/_0.48)] [--glass-shadow:rgb(148_163_184_/_0.12)] [--glass-shadow-strong:rgb(148_163_184_/_0.18)]"
-          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 6rem)' }}
+        <div
+          className="sticky z-30 mb-6 space-y-3"
+          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}
         >
-          <div className="flex gap-1 mb-2">
-            <GlassTabButton
-              onClick={() => switchTab('all')}
-              active={activeTab === 'all'}
-              accent="blue"
-              className="gap-2"
-            >
-              <LayoutGrid className="w-4 h-4" />
-              All Items
-            </GlassTabButton>
-            <GlassTabButton
-              onClick={() => switchTab('by-store')}
-              active={activeTab === 'by-store'}
-              accent="blue"
-              className="gap-2"
-            >
-              <Store className="w-4 h-4" />
-              By Store
-            </GlassTabButton>
-            <GlassTabButton
-              onClick={() => switchTab('recipes')}
-              active={activeTab === 'recipes'}
-              accent="orange"
-              className="gap-2"
-            >
-              <BookOpen className="w-4 h-4" />
-              Recipes
-            </GlassTabButton>
-          </div>
-
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder={activeTab === 'recipes' ? "Search recipes..." : "Search items or stores..."}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="glass-search-field w-full rounded-lg py-2 pl-10 pr-10 text-base sm:text-sm focus:outline-none"
+          {/* Main Action Area */}
+          {activeTab === 'recipes' ? (
+            <AddRecipeButton onClick={() => setIsRecipeModalOpen(true)} />
+          ) : (
+            <AddItem
+              onAdd={addItem}
+              supermarkets={uniqueSupermarkets}
+              onManageStores={() => setIsStoreModalOpen(true)}
+              itemNameSuggestions={removedSuggestions}
             />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="glass-search-clear absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-gray-400 transition-colors hover:text-gray-600"
-                aria-label="Clear search"
-                title="Clear search"
+          )}
+
+          {/* Search & Tabs */}
+          <GlassSurface
+            shape="panel"
+            tone="light"
+            className="z-20 p-2 [--glass-fill-start:rgb(255_255_255_/_0.66)] [--glass-fill-end:rgb(255_255_255_/_0.34)] [--glass-fill-fallback:rgb(255_255_255_/_0.86)] [--glass-border:rgb(255_255_255_/_0.56)] [--glass-highlight:rgb(255_255_255_/_0.76)] [--glass-sheen:rgb(255_255_255_/_0.48)] [--glass-shadow:rgb(148_163_184_/_0.12)] [--glass-shadow-strong:rgb(148_163_184_/_0.18)]"
+          >
+            <div className="flex gap-1 mb-2">
+              <GlassTabButton
+                onClick={() => switchTab('all')}
+                active={activeTab === 'all'}
+                accent="blue"
+                className="gap-2"
               >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </GlassSurface>
+                <LayoutGrid className="w-4 h-4" />
+                All Items
+              </GlassTabButton>
+              <GlassTabButton
+                onClick={() => switchTab('by-store')}
+                active={activeTab === 'by-store'}
+                accent="blue"
+                className="gap-2"
+              >
+                <Store className="w-4 h-4" />
+                By Store
+              </GlassTabButton>
+              <GlassTabButton
+                onClick={() => switchTab('recipes')}
+                active={activeTab === 'recipes'}
+                accent="orange"
+                className="gap-2"
+              >
+                <BookOpen className="w-4 h-4" />
+                Recipes
+              </GlassTabButton>
+            </div>
+
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder={activeTab === 'recipes' ? "Search recipes..." : "Search items or stores..."}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="glass-search-field w-full rounded-lg py-2 pl-10 pr-10 text-base sm:text-sm focus:outline-none"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="glass-search-clear absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-gray-400 transition-colors hover:text-gray-600"
+                  aria-label="Clear search"
+                  title="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </GlassSurface>
+        </div>
 
         {/* Import Recipe Button (Only in All Items) */}
         {activeTab === 'all' && (
